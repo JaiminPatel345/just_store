@@ -1,5 +1,6 @@
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
+import org.jcodec.api.awt.AWTSequenceEncoder;
 
 
 public static byte[] getBytesArrayFromFile(String filePath){
@@ -22,18 +23,23 @@ public static byte[] fileEncryption(byte[] fileContent, String secretKey){
 }
 
 
-public static void createVideo(byte[] fileContent, int width, int height, String outputPath) throws IOException{
+public static void createVideo(byte[] fileContent, int width, int height, String outputPath, int freamRate) throws IOException{
 
 
     final int bytesInOneFream = width * height / 8;
     final int totalFreams = fileContent.length / bytesInOneFream;
+    int byteIndex = 0;
 
-    BufferedImage image = createFream(fileContent, 0, width, height);
+    File video = new File(outputPath);
+    AWTSequenceEncoder encoder = AWTSequenceEncoder.createSequenceEncoder(video, freamRate);
 
-    //save image
-    ImageIO.write(image, "PNG", new File(outputPath));
+    for(int i = 0; i < totalFreams; i++){
+        BufferedImage image = createFream(fileContent, byteIndex, width, height);
+        byteIndex += bytesInOneFream;
+        encoder.encodeImage(image);
+    }
 
-
+    encoder.finish();
 
 }
 
@@ -61,13 +67,18 @@ public static BufferedImage createFream(byte[] fileContent, int byteIndex, int w
 void main() {
     try{
         System.out.println("===== Start Main ====");
-        final String filePath = "test_data/resume.pdf";
+        final String filePath = "/home/jaimin/My/Dev/learn/system-design-primer-master.zip";
+        final String outputPath = "outputs/abc.mp4";
         final String secretKey = "abc123";
-        createVideo(fileEncryption(getBytesArrayFromFile(filePath), secretKey), 1920, 1080, "outputs/abc.png");
+        final int freamRate = 24;
+        final int width = 1920;
+        final int height = 1080;
+
+
+        createVideo(fileEncryption(getBytesArrayFromFile(filePath), secretKey), width, height, outputPath, freamRate);
 
     }catch (Exception e){
         System.out.println("Error : " + e);
-
     }
 
 }
