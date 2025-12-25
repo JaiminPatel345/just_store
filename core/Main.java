@@ -1,4 +1,3 @@
-import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import org.jcodec.api.awt.AWTSequenceEncoder;
 
@@ -27,7 +26,7 @@ public static void createVideo(byte[] fileContent, int width, int height, String
 
 
     final int bytesInOneFream = width * height / 8;
-    final int totalFreams = fileContent.length / bytesInOneFream;
+    final int totalFreams = (int)Math.ceil((double)fileContent.length / bytesInOneFream);
     int byteIndex = 0;
 
     File video = new File(outputPath);
@@ -45,7 +44,7 @@ public static void createVideo(byte[] fileContent, int width, int height, String
 
 public static BufferedImage createFream(byte[] fileContent, int byteIndex, int width, int height){
     BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_BINARY);
-    for (int i = 0; i < height; i++){
+    for (int i = 0; i < height  ; i++){
         for (int j = 0; j < width; j += 8){
             for (int bitPosition = 0; bitPosition < 8; bitPosition++){
                 int bitValue = (fileContent[byteIndex] >> bitPosition);
@@ -67,12 +66,14 @@ public static BufferedImage createFream(byte[] fileContent, int byteIndex, int w
 void main() {
     try{
         System.out.println("===== Start Main ====");
-        final String filePath = "/home/jaimin/My/Dev/learn/system-design-primer-master.zip";
+//        final String filePath = "/home/jaimin/My/Dev/learn/system-design-primer-master.zip";
+        final String filePath = "test_data/resume.pdf";
+
         final String outputPath = "outputs/abc.mp4";
         final String secretKey = "abc123";
         final int freamRate = 24;
         final int width = 1920;
-        final int height = 1080;
+        final int height = 1072;
 
 
         createVideo(fileEncryption(getBytesArrayFromFile(filePath), secretKey), width, height, outputPath, freamRate);
