@@ -5,6 +5,7 @@ import org.jcodec.api.awt.AWTSequenceEncoder;
 public static byte[] getBytesArrayFromFile(String filePath){
     try{
         Path path = Paths.get(filePath);
+        System.out.println(Arrays.toString(Files.readAllBytes(path)));
         return Files.readAllBytes(path);
 
     } catch(Exception e){
@@ -47,7 +48,7 @@ public static BufferedImage createFream(byte[] fileContent, int byteIndex, int w
     for (int i = 0; i < height  ; i++){
         for (int j = 0; j < width; j += 8){
             for (int bitPosition = 0; bitPosition < 8; bitPosition++){
-                int bitValue = (fileContent[byteIndex] >> bitPosition);
+                int bitValue = (fileContent[byteIndex] >> bitPosition) & 1;
                 int rgb = bitValue == 1 ? 0xFFFFFF : 0x000000;
                 image.setRGB(j + bitPosition, i, rgb);
             }
@@ -67,7 +68,7 @@ void main() {
     try{
         System.out.println("===== Start Main ====");
 //        final String filePath = "/home/jaimin/My/Dev/learn/system-design-primer-master.zip";
-        final String filePath = "test_data/resume.pdf";
+        final String filePath = "test_data/temp.txt";
 
         final String outputPath = "outputs/abc.mp4";
         final String secretKey = "abc123";
