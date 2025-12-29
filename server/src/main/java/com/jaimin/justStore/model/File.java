@@ -16,7 +16,7 @@ import java.util.Set;
 @Entity
 @Table(name = "files", indexes = {
         @Index(name = "idx_youtube_video_id", columnList = "youtubeVideoId"),
-        @Index(name = "idx_youtube_video_url", columnList = "youtubeVideoURL"),
+        @Index(name = "idx_youtube_video_url", columnList = "youtubeVideoUrl"),
         /* Easy to search file */
         @Index(name = "idx_file_name", columnList = "originalFileName"),
         @Index(name = "idx_file_type", columnList = "originalFileType"),
