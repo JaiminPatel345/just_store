@@ -26,3 +26,10 @@ replay_pid*
 
 .idea
 .vscode
+ 
+# Env files (never commit secrets)
+.env
+server/.env
+
+# Local-only Spring profile override
+server/src/main/resources/application-local.properties
