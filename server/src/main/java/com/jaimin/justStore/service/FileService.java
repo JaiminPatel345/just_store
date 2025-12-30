@@ -6,6 +6,8 @@ import com.jaimin.justStore.repository.FileRepository;
 import com.jaimin.justStore.utils.ChecksumUtil;
 import com.jaimin.justStore.utils.CreateVideoUtil;
 import com.jaimin.justStore.utils.HashUtil;
+import com.jaimin.justStore.utils.RetrieveVideo;
+import org.jcodec.api.JCodecException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -66,6 +68,30 @@ public class FileService {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .build();
+
+    }
+
+    public ResponseEntity<?> getFile(String videoPath) throws IOException, JCodecException {
+        if(videoPath == null || videoPath.trim().isEmpty()){
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Give correct input video path"
+            );
+        }
+
+        if(!videoPath.endsWith(".mp4")){
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Input video path must end with .mp4"
+            );
+        }
+
+        byte[] fileBytes = RetrieveVideo.decodeVideo(videoPath);
+
+        return ResponseEntity
+                .status( HttpStatus.OK)
+                .body(fileBytes);
+
 
     }
 }

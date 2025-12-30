@@ -4,10 +4,7 @@ import com.jaimin.justStore.dto.UploadFileRequestDto;
 import com.jaimin.justStore.service.FileService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 import java.util.Map;
@@ -35,6 +32,21 @@ public class FileController {
         try {
             return fileService.uploadFile(uploadRequest);
         } catch (IOException ex) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", ex.getLocalizedMessage()));
+        }
+    }
+
+    @GetMapping("/file")
+    public ResponseEntity<?> getFile(
+            //TODO: replace with DTO
+            @RequestParam
+            String videoPath //this is temp and for development
+    ){
+        try{
+            return fileService.getFile(videoPath);
+        }catch (Exception ex) {
             return ResponseEntity
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", ex.getLocalizedMessage()));
