@@ -4,6 +4,7 @@ import com.jaimin.justStore.dto.UploadFileRequestDto;
 import com.jaimin.justStore.model.File;
 import com.jaimin.justStore.repository.FileRepository;
 import com.jaimin.justStore.utils.ChecksumUtil;
+import com.jaimin.justStore.utils.CreateVideoUtil;
 import com.jaimin.justStore.utils.HashUtil;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,7 +29,7 @@ public class FileService {
             );
         }
 
-        String originalFileName = uploadRequest.file().getName();
+        String originalFileName = uploadRequest.file().getOriginalFilename();
         Long originalFileSizeInByte = uploadRequest.file().getSize();
         String originalFileType = uploadRequest.file().getContentType();
 
@@ -45,6 +46,21 @@ public class FileService {
         newFile.setFileChecksum(fileChecksum);
 
         fileRepository.save(newFile);
+
+        //Encryption if secret key is given
+        if(uploadRequest.secretKey() != null){
+            //TODO: encryption
+            //newFile = EncruptionFuction
+            System.out.println("File Encryption need to implemented");
+        }
+
+        //Time to create video
+        final int width = 1920;
+        final int frameRate = 24;
+        final int height = 1072;
+        final String tempOutputPath = "/tmp/jaimin.mp4";
+        CreateVideoUtil.createVideo(fileBytes, width, height, frameRate, tempOutputPath);
+
 
         //just checking
         return ResponseEntity

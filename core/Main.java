@@ -53,7 +53,6 @@ public static BufferedImage createMetadataFrame(int totalBytes, int width, int h
     }
 
     return image;
-
 }
 
 public static BufferedImage createFrame(byte[] fileContent, int byteIndex, int width, int height){
