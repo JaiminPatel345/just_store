@@ -21,6 +21,11 @@ const UploadPage: React.FC = () => {
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles?.length > 0) {
       setSelectedFile(acceptedFiles[0]);
+      // Reset all options when new file is selected
+      setEncryptFile(false);
+      setSecretKey('');
+      setTags([]);
+      setTagInput('');
       dispatch(resetState());
     }
   }, [dispatch]);
