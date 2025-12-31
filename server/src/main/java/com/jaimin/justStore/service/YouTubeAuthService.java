@@ -3,6 +3,7 @@ package com.jaimin.justStore.service;
 import com.google.api.client.auth.oauth2.TokenResponse;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
 import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
+import com.google.api.client.googleapis.auth.oauth2.GoogleRefreshTokenRequest;
 import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
@@ -93,20 +94,31 @@ public class YouTubeAuthService {
                 .setRedirectUri(getRedirectUri())
                 .execute();
 
-        // Delete existing token if any
-        tokenRepository.findByProvider(PROVIDER_YOUTUBE)
-                .ifPresent(token -> tokenRepository.delete(token));
-
-        // Save new token
-        OAuthToken oAuthToken = new OAuthToken(
-                PROVIDER_YOUTUBE,
-                tokenResponse.getAccessToken(),
-                tokenResponse.getRefreshToken(),
-                tokenResponse.getExpiresInSeconds()
-        );
+        // Find existing token
+        Optional<OAuthToken> existingToken = tokenRepository.findByProvider(PROVIDER_YOUTUBE);
+        
+        OAuthToken oAuthToken;
+        if (existingToken.isPresent()) {
+            // Update existing token
+            oAuthToken = existingToken.get();
+            oAuthToken.setAccessToken(tokenResponse.getAccessToken());
+            if (tokenResponse.getRefreshToken() != null) {
+                oAuthToken.setRefreshToken(tokenResponse.getRefreshToken());
+            }
+            oAuthToken.setExpiresInSeconds(tokenResponse.getExpiresInSeconds());
+        } else {
+            // Create new token
+            oAuthToken = new OAuthToken(
+                    PROVIDER_YOUTUBE,
+                    tokenResponse.getAccessToken(),
+                    tokenResponse.getRefreshToken(),
+                    tokenResponse.getExpiresInSeconds()
+            );
+        }
 
         OAuthToken savedToken = tokenRepository.save(oAuthToken);
-        logger.info("YouTube OAuth tokens saved successfully");
+        logger.info("YouTube OAuth tokens saved successfully. Has refresh token: {}", 
+                savedToken.getRefreshToken() != null);
         return savedToken;
     }
 
@@ -145,11 +157,16 @@ public class YouTubeAuthService {
             throw new IOException("No refresh token available");
         }
 
-        GoogleAuthorizationCodeFlow flow = buildFlow();
+        // Use GoogleRefreshTokenRequest for proper token refresh
+        GoogleRefreshTokenRequest refreshRequest = new GoogleRefreshTokenRequest(
+                httpTransport,
+                JSON_FACTORY,
+                token.getRefreshToken(),
+                clientSecrets.getDetails().getClientId(),
+                clientSecrets.getDetails().getClientSecret()
+        );
 
-        TokenResponse tokenResponse = flow.newTokenRequest(token.getRefreshToken())
-                .setGrantType("refresh_token")
-                .execute();
+        TokenResponse tokenResponse = refreshRequest.execute();
 
         token.setAccessToken(tokenResponse.getAccessToken());
         if (tokenResponse.getRefreshToken() != null) {

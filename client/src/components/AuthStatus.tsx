@@ -13,21 +13,24 @@ const AuthStatus: React.FC = () => {
   const [loginLoading, setLoginLoading] = useState(false);
 
   useEffect(() => {
-    // Check auth status on mount
-    dispatch(checkAuthStatus());
-
-    // Check for auth callback params in URL
+    // Check for auth callback params in URL first
     const urlParams = new URLSearchParams(window.location.search);
     const authStatus = urlParams.get('auth');
     
     if (authStatus === 'success') {
+      // Set authenticated immediately since we just completed OAuth
       dispatch(setAuthenticated(true));
       // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
+      // Then verify with backend (but don't let it overwrite if it fails due to timing)
+      dispatch(checkAuthStatus());
     } else if (authStatus === 'error') {
       dispatch(setAuthenticated(false));
       // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
+    } else {
+      // No callback params, just check auth status from backend
+      dispatch(checkAuthStatus());
     }
   }, [dispatch]);
 
