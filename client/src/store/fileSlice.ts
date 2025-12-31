@@ -4,9 +4,17 @@ import axios from 'axios';
 // Get API URL from env or default
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
+interface UploadResponse {
+  message: string;
+  fileId: number;
+  youtubeVideoId: string;
+  youtubeVideoUrl: string;
+}
+
 interface FileState {
   uploading: boolean;
   uploadSuccess: boolean;
+  uploadResponse: UploadResponse | null;
   error: string | null;
   retrievedVideoBlobUrl: string | null;
   retrievedOriginalFileBlobUrl: string | null;
@@ -15,6 +23,7 @@ interface FileState {
 const initialState: FileState = {
   uploading: false,
   uploadSuccess: false,
+  uploadResponse: null,
   error: null,
   retrievedVideoBlobUrl: null,
   retrievedOriginalFileBlobUrl: null,
@@ -23,12 +32,15 @@ const initialState: FileState = {
 // Async thunk for uploading file
 export const uploadFile = createAsyncThunk(
   'file/upload',
-  async (payload: { file: File; secretKey?: string }, { rejectWithValue }) => {
+  async (payload: { file: File; secretKey?: string; tags?: string[] }, { rejectWithValue }) => {
     try {
       const formData = new FormData();
       formData.append('file', payload.file);
       if (payload.secretKey) {
         formData.append('secretKey', payload.secretKey);
+      }
+      if (payload.tags && payload.tags.length > 0) {
+        payload.tags.forEach(tag => formData.append('tags', tag));
       }
 
       const response = await axios.post(`${API_URL}/upload`, formData, {
@@ -36,9 +48,9 @@ export const uploadFile = createAsyncThunk(
           'Content-Type': 'multipart/form-data',
         },
       });
-      return response.data;
+      return response.data as UploadResponse;
     } catch (err: any) {
-      return rejectWithValue(err.response?.data?.error || 'Upload failed');
+      return rejectWithValue(err.response?.data?.error || err.response?.data?.message || 'Upload failed');
     }
   }
 );
@@ -85,6 +97,7 @@ const fileSlice = createSlice({
     resetState: (state) => {
         state.uploading = false;
         state.uploadSuccess = false;
+        state.uploadResponse = null;
         state.error = null;
         state.retrievedVideoBlobUrl = null;
         state.retrievedOriginalFileBlobUrl = null;
@@ -100,10 +113,12 @@ const fileSlice = createSlice({
         state.uploading = true;
         state.error = null;
         state.uploadSuccess = false;
+        state.uploadResponse = null;
       })
-      .addCase(uploadFile.fulfilled, (state) => {
+      .addCase(uploadFile.fulfilled, (state, action) => {
         state.uploading = false;
         state.uploadSuccess = true;
+        state.uploadResponse = action.payload;
       })
       .addCase(uploadFile.rejected, (state, action) => {
         state.uploading = false;
