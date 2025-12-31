@@ -10,7 +10,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 const UploadPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { uploading, uploadSuccess, error } = useSelector((state: RootState) => state.file);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [encryptFile, setEncryptFile] = useState(false);
+  const [secretKey, setSecretKey] = useState('');
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles?.length > 0) {
@@ -27,7 +29,12 @@ const UploadPage: React.FC = () => {
 
   const handleUpload = () => {
     if (selectedFile) {
-      dispatch(uploadFile(selectedFile));
+      if (encryptFile && !secretKey) {
+          // Simple validation: if encryption is checked, key is required.
+          alert("Please enter a secret key.");
+          return;
+      }
+      dispatch(uploadFile({ file: selectedFile, secretKey: encryptFile ? secretKey : undefined }));
     }
   };
 
@@ -35,6 +42,8 @@ const UploadPage: React.FC = () => {
     e.stopPropagation();
     setSelectedFile(null);
     dispatch(resetState());
+    setEncryptFile(false);
+    setSecretKey('');
   };
 
   return (
@@ -77,25 +86,63 @@ const UploadPage: React.FC = () => {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="bg-[#2a2a2a] rounded-lg p-4 flex items-center justify-between border border-gray-700 hover:border-gray-600 transition-colors"
+              className="bg-[#2a2a2a] rounded-lg p-4 transition-colors border border-gray-700 hover:border-gray-600"
             >
-              <div className="flex items-center space-x-4 overflow-hidden">
-                <div className="p-2 bg-blue-500/10 rounded-lg">
-                  <File className="w-6 h-6 text-blue-400" />
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-4 overflow-hidden">
+                    <div className="p-2 bg-blue-500/10 rounded-lg">
+                    <File className="w-6 h-6 text-blue-400" />
+                    </div>
+                    <div className="truncate">
+                    <p className="text-sm font-medium text-white truncate">{selectedFile.name}</p>
+                    <p className="text-xs text-gray-500">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                    </div>
                 </div>
-                <div className="truncate">
-                  <p className="text-sm font-medium text-white truncate">{selectedFile.name}</p>
-                  <p className="text-xs text-gray-500">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
-                </div>
+                {!uploading && !uploadSuccess && (
+                    <button
+                    onClick={removeFile}
+                    className="p-1 hover:bg-gray-700 rounded-full text-gray-400 hover:text-white transition-colors"
+                    >
+                    <X className="w-5 h-5" />
+                    </button>
+                )}
               </div>
-              {!uploading && !uploadSuccess && (
-                <button
-                  onClick={removeFile}
-                  className="p-1 hover:bg-gray-700 rounded-full text-gray-400 hover:text-white transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              )}
+
+               {!uploadSuccess && (
+                  <div className="border-t border-gray-700 pt-4">
+                    <div className="flex items-center space-x-3 mb-3">
+                         <input
+                            type="checkbox"
+                            id="encryptFile"
+                            checked={encryptFile}
+                            onChange={(e) => setEncryptFile(e.target.checked)}
+                            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-600 ring-offset-gray-800 bg-gray-700 border-gray-600"
+                         />
+                         <label htmlFor="encryptFile" className="text-sm font-medium text-gray-300 cursor-pointer select-none">
+                            Encrypt File
+                         </label>
+                    </div>
+                    
+                    <AnimatePresence>
+                        {encryptFile && (
+                            <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                className="overflow-hidden"
+                            >
+                                <input
+                                    type="password"
+                                    placeholder="Enter Secret Key"
+                                    value={secretKey}
+                                    onChange={(e) => setSecretKey(e.target.value)}
+                                    className="w-full px-3 py-2 bg-[#1a1a1a] border border-gray-700 rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-500"
+                                />
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                  </div>
+               )}
             </motion.div>
           )}
         </AnimatePresence>

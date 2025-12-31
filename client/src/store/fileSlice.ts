@@ -23,12 +23,13 @@ const initialState: FileState = {
 // Async thunk for uploading file
 export const uploadFile = createAsyncThunk(
   'file/upload',
-  async (file: File, { rejectWithValue }) => {
+  async (payload: { file: File; secretKey?: string }, { rejectWithValue }) => {
     try {
       const formData = new FormData();
-      formData.append('file', file);
-      // formData.append('secretKey', 'optional-key'); 
-      // formData.append('tags', 'tag1');
+      formData.append('file', payload.file);
+      if (payload.secretKey) {
+        formData.append('secretKey', payload.secretKey);
+      }
 
       const response = await axios.post(`${API_URL}/upload`, formData, {
         headers: {
