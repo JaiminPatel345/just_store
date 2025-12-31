@@ -11,6 +11,41 @@ interface UploadResponse {
   youtubeVideoUrl: string;
 }
 
+// User-friendly file info (from search results)
+interface FileInfo {
+  id: number;
+  originalFileName: string;
+  originalFileSizeFormatted: string;
+  originalFileSizeInByte: number;
+  originalFileType: string;
+  tags: string[];
+  status: string;
+  createdAt: string;
+}
+
+// Full file details (includes YouTube info)
+interface FileDetail {
+  id: number;
+  originalFileName: string;
+  originalFileSizeFormatted: string;
+  originalFileSizeInByte: number;
+  originalFileType: string;
+  tags: string[];
+  youtubeVideoId: string;
+  youtubeVideoUrl: string;
+  status: string;
+  isEncrypted: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface SearchParams {
+  fileName?: string;
+  tag?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
 interface FileState {
   uploading: boolean;
   uploadSuccess: boolean;
@@ -18,6 +53,12 @@ interface FileState {
   error: string | null;
   retrievedVideoBlobUrl: string | null;
   retrievedOriginalFileBlobUrl: string | null;
+  // New state for file listing
+  files: FileInfo[];
+  selectedFile: FileDetail | null;
+  filesLoading: boolean;
+  searchLoading: boolean;
+  downloading: boolean;
 }
 
 const initialState: FileState = {
@@ -27,6 +68,11 @@ const initialState: FileState = {
   error: null,
   retrievedVideoBlobUrl: null,
   retrievedOriginalFileBlobUrl: null,
+  files: [],
+  selectedFile: null,
+  filesLoading: false,
+  searchLoading: false,
+  downloading: false,
 };
 
 // Async thunk for uploading file
@@ -55,6 +101,51 @@ export const uploadFile = createAsyncThunk(
   }
 );
 
+// Async thunk for fetching all files
+export const fetchAllFiles = createAsyncThunk(
+  'file/fetchAll',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await axios.get(`${API_URL}/files`);
+      return response.data as FileInfo[];
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.error || 'Failed to fetch files');
+    }
+  }
+);
+
+// Async thunk for searching files with filters
+export const searchFiles = createAsyncThunk(
+  'file/search',
+  async (params: SearchParams, { rejectWithValue }) => {
+    try {
+      const queryParams = new URLSearchParams();
+      if (params.fileName) queryParams.append('fileName', params.fileName);
+      if (params.tag) queryParams.append('tag', params.tag);
+      if (params.startDate) queryParams.append('startDate', params.startDate);
+      if (params.endDate) queryParams.append('endDate', params.endDate);
+
+      const response = await axios.get(`${API_URL}/files/search?${queryParams.toString()}`);
+      return response.data as FileInfo[];
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.error || 'Search failed');
+    }
+  }
+);
+
+// Async thunk for fetching file details by ID
+export const fetchFileById = createAsyncThunk(
+  'file/fetchById',
+  async (id: number, { rejectWithValue }) => {
+    try {
+      const response = await axios.get(`${API_URL}/files/${id}`);
+      return response.data as FileDetail;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.error || 'Failed to fetch file details');
+    }
+  }
+);
+
 // Async thunk for retrieving file (video path -> original file)
 export const retrieveFile = createAsyncThunk(
   'file/retrieve',
@@ -71,24 +162,21 @@ export const retrieveFile = createAsyncThunk(
   }
 );
 
-// Helper to fetch the uploaded video if user wants to see it immediately
-// Since backend saves to /tmp/jaimin.mp4, we can try to fetch it? 
-// But /file endpoint logic is "decodeVideo", so it expects a video path and returns *original* file.
-// There is NO endpoint to "get the video itself" from the backend currently.
-// The backend creates a video but doesn't serve it. 
-// However, the user request says "show respose(video file)".
-// If backend strictly does File -> Video (store) AND Video -> File (retrieve),
-// Then "show response (video file)" after upload implies we should show the *result* of the upload?
-// But the result is a video on the server.
-// Without an endpoint to download/stream that video, we cannot show it.
-// I will populate `uploadSuccess` and show a success message. 
-// Maybe I can mock the display or ask user? 
-// Getting stuck on "show response" if backend doesn't serve it.
-// But wait! If I upload a file, the backend writes to /tmp/jaimin.mp4.
-// If I call /file?videoPath=/tmp/jaimin.mp4, the backend READS /tmp/jaimin.mp4, DECODES it, and returns the ORIGINAL file bytes.
-// So calling /file with the output path returns the INPUT file.
-// That doesn't "show the video file".
-// I will proceed with just showing success for now.
+// Async thunk for downloading original file by YouTube video ID
+// Note: This needs backend support for downloading via YouTube video ID
+export const downloadFileByYoutubeId = createAsyncThunk(
+  'file/downloadByYoutubeId',
+  async ({ youtubeVideoId, fileName }: { youtubeVideoId: string; fileName: string }, { rejectWithValue }) => {
+    try {
+      // For now, we'll return the YouTube URL since the download from YouTube
+      // requires additional implementation (streaming from YouTube)
+      // The actual file download would need backend to fetch from YouTube and decode
+      return { youtubeVideoId, fileName, message: 'Download initiated' };
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.error || 'Download failed');
+    }
+  }
+);
 
 const fileSlice = createSlice({
   name: 'file',
@@ -104,6 +192,12 @@ const fileSlice = createSlice({
     },
     setRetrievedUrl: (state, action: PayloadAction<string>) => {
         state.retrievedOriginalFileBlobUrl = action.payload;
+    },
+    clearSelectedFile: (state) => {
+        state.selectedFile = null;
+    },
+    clearError: (state) => {
+        state.error = null;
     }
   },
   extraReducers: (builder) => {
@@ -137,9 +231,61 @@ const fileSlice = createSlice({
       .addCase(retrieveFile.rejected, (state, action) => {
         state.uploading = false;
         state.error = action.payload as string;
+      })
+      // Fetch All Files
+      .addCase(fetchAllFiles.pending, (state) => {
+        state.filesLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchAllFiles.fulfilled, (state, action) => {
+        state.filesLoading = false;
+        state.files = action.payload;
+      })
+      .addCase(fetchAllFiles.rejected, (state, action) => {
+        state.filesLoading = false;
+        state.error = action.payload as string;
+      })
+      // Search Files
+      .addCase(searchFiles.pending, (state) => {
+        state.searchLoading = true;
+        state.error = null;
+      })
+      .addCase(searchFiles.fulfilled, (state, action) => {
+        state.searchLoading = false;
+        state.files = action.payload;
+      })
+      .addCase(searchFiles.rejected, (state, action) => {
+        state.searchLoading = false;
+        state.error = action.payload as string;
+      })
+      // Fetch File By ID
+      .addCase(fetchFileById.pending, (state) => {
+        state.filesLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchFileById.fulfilled, (state, action) => {
+        state.filesLoading = false;
+        state.selectedFile = action.payload;
+      })
+      .addCase(fetchFileById.rejected, (state, action) => {
+        state.filesLoading = false;
+        state.error = action.payload as string;
+      })
+      // Download by YouTube ID
+      .addCase(downloadFileByYoutubeId.pending, (state) => {
+        state.downloading = true;
+        state.error = null;
+      })
+      .addCase(downloadFileByYoutubeId.fulfilled, (state) => {
+        state.downloading = false;
+      })
+      .addCase(downloadFileByYoutubeId.rejected, (state, action) => {
+        state.downloading = false;
+        state.error = action.payload as string;
       });
   },
 });
 
-export const { resetState, setRetrievedUrl } = fileSlice.actions;
+export const { resetState, setRetrievedUrl, clearSelectedFile, clearError } = fileSlice.actions;
 export default fileSlice.reducer;
+
