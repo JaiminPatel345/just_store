@@ -1,0 +1,2 @@
+- google oauth from gcp
+- https://github.com/yt-dlp/yt-dlp installed on your machine.
