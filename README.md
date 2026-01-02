@@ -2,6 +2,10 @@
 Java version of DvorakDwarf's  Infinite-Storage-Glitch with frontned
 
 
+> [!NOTE]  
+> If your uploaded file is too small ( < 10 MB ) then youtube might discard that video due to video length is less then 1s.
+
+
 ## Core Flow
 ```mermaid
 sequenceDiagram
@@ -42,20 +46,20 @@ sequenceDiagram
 ## What implemented
 
 ### Frontend
-- [ ] YouTube access
-- [ ] Main page (file upload, other data)
-- [ ] Backend connectivity
-- [ ] retriever page
+- [x] YouTube access
+- [x] Main page (file upload, other data)
+- [x] Backend connectivity
+- [x] retriever page
 
 ### Backend
 - [ ] Encryption module
-- [ ] file to binary string
-- [ ] BS to image
-- [ ] images  to video
-- [ ] user oauth from Google for YouTube
-- [ ] YouTube upload
-- [ ] Database config and storing
-- [ ] retriever file base on metadata
+- [x] file to binary string
+- [x] BS to image
+- [x] images  to video
+- [x] user oauth from Google for YouTube
+- [x] YouTube upload
+- [x] Database config and storing
+- [x] retriever file base on metadata
 
 
 - [ ] Clean code
@@ -63,3 +67,4 @@ sequenceDiagram
 - [ ] All edge cases 
 - [ ] Security
 - [ ] Optimization (Threads)
+- [ ] Improved UI
