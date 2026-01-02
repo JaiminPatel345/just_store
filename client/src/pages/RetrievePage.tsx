@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch, RootState } from '../store';
 import { fetchAllFiles, searchFiles, fetchFileById, clearSelectedFile, clearError } from '../store/fileSlice';
@@ -26,6 +27,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const RetrievePage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
+  const navigate = useNavigate();
   const { files, selectedFile, filesLoading, searchLoading, error } = useSelector((state: RootState) => state.file);
   const { isAuthenticated, loading: authLoading } = useSelector((state: RootState) => state.auth);
   
@@ -533,9 +535,17 @@ const RetrievePage: React.FC = () => {
                     <button
                       className="flex-1 py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2"
                       onClick={() => {
-                        // TODO: Implement actual download functionality
-                        // This would need backend to fetch video from YouTube and decode it
-                        alert('Download functionality coming soon! The video is stored on YouTube and needs to be decoded.');
+                        // Navigate to download page with file details
+                        const params = new URLSearchParams({
+                          fileId: selectedFile.id.toString(),
+                          fileName: selectedFile.originalFileName,
+                          fileSize: selectedFile.originalFileSizeInByte.toString(),
+                          fileType: selectedFile.originalFileType,
+                          isEncrypted: selectedFile.isEncrypted.toString(),
+                          ...(selectedFile.youtubeVideoUrl && { youtubeUrl: selectedFile.youtubeVideoUrl })
+                        });
+                        handleCloseModal();
+                        navigate(`/download?${params.toString()}`);
                       }}
                     >
                       <Download className="w-4 h-4" />
