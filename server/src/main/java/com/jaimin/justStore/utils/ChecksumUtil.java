@@ -1,8 +1,11 @@
 package com.jaimin.justStore.utils;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -11,18 +14,37 @@ import static com.jaimin.justStore.utils.BytesToHex.bytesToHex;
 
 public class ChecksumUtil {
 
-    public static String calculateChecksum(byte[] data) {
+    public static String calculateChecksum(InputStream data) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(data);
-            return bytesToHex(hash);
+            byte[] buffer = new byte[1024 * 1024]; //1MB
+            int byteRead;
+
+            while((byteRead = data.read(buffer)) != -1){
+                digest.update(buffer, 0, byteRead);
+            }
+
+            byte[] hash = digest.digest();
+            data.close();
+            return new String(hash, StandardCharsets.UTF_8);
+
+
         } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("SHA-256 algorithm not found", e);
+            throw new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "NoSuchAlgorithmException Exception while calculating checksum " + e.getMessage()
+            );
+        } catch(IOException e){
+            throw new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "IO Exception while calculating checksum " + e.getMessage()
+            );
         }
+
     }
 
     public static String calculateChecksum(MultipartFile file) throws IOException {
-        return calculateChecksum(file.getBytes());
+        return calculateChecksum(file.getInputStream());
     }
 
 
