@@ -5,6 +5,8 @@ Java version of DvorakDwarf's  Infinite-Storage-Glitch with frontned
 > [!NOTE]  
 > If your uploaded file is too small ( < 10 MB ) then youtube might discard that video due to video length is less then 1s.
 
+# Setup
+follow [Requirements](docs/requirments.md) for setup.
 
 ## Core Flow
 ```mermaid
