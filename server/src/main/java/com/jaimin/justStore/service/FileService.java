@@ -25,6 +25,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static com.jaimin.justStore.utils.UploadFileUtil.getNewFile;
+
 @Service
 public class FileService {
     private static final Logger logger = LoggerFactory.getLogger(FileService.class);
@@ -171,26 +173,7 @@ public class FileService {
             );
         }
 
-        if (uploadRequest.file().isEmpty()) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "File bhejna sale ! (Please add file)"
-            );
-        }
-
-        String originalFileName = uploadRequest.file().getOriginalFilename();
-        Long originalFileSizeInByte = uploadRequest.file().getSize();
-        String originalFileType = uploadRequest.file().getContentType();
-
-        //Check if file is too small
-        if(originalFileSizeInByte < 10*1024*1024){
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "File is too small, YouTube will discard."
-            );
-        }
-
-        File newFile = new File(originalFileName, originalFileSizeInByte, originalFileType, uploadRequest.tags());
+        File newFile = getNewFile(uploadRequest);
 
         if (uploadRequest.secretKey() != null) {
             String secretKeyHash = HashUtil.hash(uploadRequest.secretKey());
@@ -239,7 +222,7 @@ public class FileService {
             );
 
             // Upload to YouTube
-            String videoTitle = "JustStore_" + newFile.getId() + "_" + originalFileName;
+            String videoTitle = "JustStore_" + newFile.getId() + "_" + newFile.getOriginalFileName().replace(" ", "_");
             logger.info("Uploading video to YouTube with title: {}", videoTitle);
 
             YouTubeApi.YouTubeUploadResult uploadResult = youTubeApi.uploadVideo(
