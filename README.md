@@ -70,3 +70,15 @@ sequenceDiagram
 - [ ] Security
 - [ ] Optimization (Threads)
 - [ ] Improved UI
+
+
+> [!NOTE]
+> This project is **not intended for production use**. It is designed to run locally only.
+
+> [!WARNING]
+> **Security Risk:** This application is designed for single-user use and lacks authentication after YouTube authorization. Once you connect your YouTube account from any browser, the access token is stored in the database. This means that **anyone who can access your database** (including users on the same system or from different browsers/private tabs) can:
+> - Access all your stored files
+> - Obtain your YouTube access tokens
+> - Perform actions on your YouTube account
+> 
+> **Only use this application in a trusted, local environment.**
