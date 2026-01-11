@@ -11,7 +11,7 @@ const UploadPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { uploading, uploadSuccess, uploadResponse, error } = useSelector((state: RootState) => state.file);
   const { isAuthenticated } = useSelector((state: RootState) => state.auth);
-  
+
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [encryptFile, setEncryptFile] = useState(false);
   const [secretKey, setSecretKey] = useState('');
@@ -46,8 +46,8 @@ const UploadPage: React.FC = () => {
         alert("Please enter a secret key.");
         return;
       }
-      dispatch(uploadFile({ 
-        file: selectedFile, 
+      dispatch(uploadFile({
+        file: selectedFile,
         secretKey: encryptFile ? secretKey : undefined,
         tags: tags.length > 0 ? tags : undefined
       }));
@@ -110,6 +110,24 @@ const UploadPage: React.FC = () => {
         </motion.div>
       )}
 
+      {/* Error Message - Moved to top for better visibility */}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="mb-6 p-4 rounded-lg bg-red-500/10 border border-red-500/30 flex items-start gap-3"
+          >
+            <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-red-400 font-medium">Upload Error</p>
+              <p className="text-red-400/90 text-sm mt-1">{error}</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="space-y-6">
         {/* Upload Success - Show YouTube Video */}
         <AnimatePresence>
@@ -124,7 +142,7 @@ const UploadPage: React.FC = () => {
                 <CheckCircle className="w-6 h-6 text-green-500" />
                 <h3 className="text-lg font-semibold text-green-400">Upload Successful!</h3>
               </div>
-              
+
               <div className="space-y-4">
                 {/* YouTube Video Embed */}
                 <div className="aspect-video bg-black rounded-lg overflow-hidden">
@@ -275,7 +293,7 @@ const UploadPage: React.FC = () => {
                     <Tag className="w-4 h-4" />
                     Tags
                   </label>
-                  
+
                   <div className="flex flex-wrap gap-2 min-h-[32px]">
                     {tags.map((tag) => (
                       <span
@@ -329,20 +347,6 @@ const UploadPage: React.FC = () => {
                   )}
                 </button>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Error Message */}
-        <AnimatePresence>
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="p-4 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm"
-            >
-              <strong>Error:</strong> {error}
             </motion.div>
           )}
         </AnimatePresence>

@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
+import { extractErrorMessage } from '../utils/errorUtils';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
@@ -23,7 +24,7 @@ export const checkAuthStatus = createAsyncThunk(
       const response = await axios.get(`${API_URL}/auth/youtube/status`);
       return response.data;
     } catch (err: any) {
-      return rejectWithValue(err.response?.data?.error || 'Failed to check auth status');
+      return rejectWithValue(extractErrorMessage(err, 'Failed to check auth status'));
     }
   }
 );
@@ -36,7 +37,7 @@ export const getLoginUrl = createAsyncThunk(
       const response = await axios.get(`${API_URL}/auth/youtube/login`);
       return response.data;
     } catch (err: any) {
-      return rejectWithValue(err.response?.data?.error || 'Failed to get login URL');
+      return rejectWithValue(extractErrorMessage(err, 'Failed to get login URL'));
     }
   }
 );
@@ -49,7 +50,7 @@ export const logout = createAsyncThunk(
       const response = await axios.post(`${API_URL}/auth/youtube/logout`);
       return response.data;
     } catch (err: any) {
-      return rejectWithValue(err.response?.data?.error || 'Failed to logout');
+      return rejectWithValue(extractErrorMessage(err, 'Failed to logout'));
     }
   }
 );

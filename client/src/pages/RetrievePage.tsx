@@ -4,15 +4,15 @@ import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch, RootState } from '../store';
 import { fetchAllFiles, searchFiles, fetchFileById, clearSelectedFile, clearError } from '../store/fileSlice';
 import { checkAuthStatus } from '../store/authSlice';
-import { 
-  Search, 
-  Calendar, 
-  Tag, 
-  FileVideo, 
-  Download, 
-  Loader2, 
-  AlertCircle, 
-  X, 
+import {
+  Search,
+  Calendar,
+  Tag,
+  FileVideo,
+  Download,
+  Loader2,
+  AlertCircle,
+  X,
   ExternalLink,
   Youtube,
   HardDrive,
@@ -30,14 +30,14 @@ const RetrievePage: React.FC = () => {
   const navigate = useNavigate();
   const { files, selectedFile, filesLoading, searchLoading, error } = useSelector((state: RootState) => state.file);
   const { isAuthenticated, loading: authLoading } = useSelector((state: RootState) => state.auth);
-  
+
   // Search filters
   const [searchFileName, setSearchFileName] = useState('');
   const [searchTag, setSearchTag] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  
+
   // Modal state
   const [showDetailModal, setShowDetailModal] = useState(false);
 
@@ -55,7 +55,7 @@ const RetrievePage: React.FC = () => {
     if (searchTag.trim()) params.tag = searchTag.trim();
     if (startDate) params.startDate = startDate;
     if (endDate) params.endDate = endDate;
-    
+
     if (Object.keys(params).length > 0) {
       dispatch(searchFiles(params));
     } else {
@@ -131,6 +131,27 @@ const RetrievePage: React.FC = () => {
         </motion.div>
       )}
 
+      {/* Error Message - Moved to top for better visibility */}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="mb-6 p-4 rounded-lg bg-red-500/10 border border-red-500/30 flex items-start gap-3"
+          >
+            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-red-400 font-medium">Error</p>
+              <p className="text-red-400/90 text-sm mt-1">{error}</p>
+            </div>
+            <button onClick={() => dispatch(clearError())} className="text-red-400 hover:text-red-300 transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Search Section */}
       <div className="bg-[#242424] rounded-xl border border-gray-800 p-6 mb-6">
         <form onSubmit={handleSearch}>
@@ -153,8 +174,8 @@ const RetrievePage: React.FC = () => {
               onClick={() => setShowFilters(!showFilters)}
               className={clsx(
                 "px-4 py-2.5 rounded-lg border transition-all flex items-center gap-2",
-                showFilters 
-                  ? "bg-blue-600 border-blue-500 text-white" 
+                showFilters
+                  ? "bg-blue-600 border-blue-500 text-white"
                   : "border-gray-700 text-gray-400 hover:border-gray-500 hover:text-white"
               )}
             >
@@ -195,7 +216,7 @@ const RetrievePage: React.FC = () => {
                       className="block w-full px-3 py-2 border border-gray-700 rounded-lg bg-[#1a1a1a] text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm"
                     />
                   </div>
-                  
+
                   {/* Start Date */}
                   <div>
                     <label className="flex items-center gap-2 text-sm font-medium text-gray-400 mb-2">
@@ -209,7 +230,7 @@ const RetrievePage: React.FC = () => {
                       className="block w-full px-3 py-2 border border-gray-700 rounded-lg bg-[#1a1a1a] text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm"
                     />
                   </div>
-                  
+
                   {/* End Date */}
                   <div>
                     <label className="flex items-center gap-2 text-sm font-medium text-gray-400 mb-2">
@@ -224,7 +245,7 @@ const RetrievePage: React.FC = () => {
                     />
                   </div>
                 </div>
-                
+
                 <div className="flex justify-end mt-4">
                   <button
                     type="button"
@@ -254,27 +275,6 @@ const RetrievePage: React.FC = () => {
           Refresh
         </button>
       </div>
-
-      {/* Error Message */}
-      <AnimatePresence>
-        {error && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="mb-6 p-4 rounded-lg bg-red-500/10 border border-red-500/20 flex items-start space-x-3"
-          >
-            <AlertCircle className="w-5 h-5 text-red-400 mt-0.5" />
-            <div className="flex-1">
-              <h3 className="text-sm font-medium text-red-400">Error</h3>
-              <p className="text-sm text-red-400/80 mt-1">{error}</p>
-            </div>
-            <button onClick={() => dispatch(clearError())} className="text-red-400 hover:text-red-300">
-              <X className="w-4 h-4" />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Loading State */}
       {filesLoading && (
