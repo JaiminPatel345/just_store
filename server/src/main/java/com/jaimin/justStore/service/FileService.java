@@ -182,6 +182,14 @@ public class FileService {
         Long originalFileSizeInByte = uploadRequest.file().getSize();
         String originalFileType = uploadRequest.file().getContentType();
 
+        //Check if file is too small
+        if(originalFileSizeInByte < 10*1024*1024){
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "File is too small, YouTube will discard."
+            );
+        }
+
         File newFile = new File(originalFileName, originalFileSizeInByte, originalFileType, uploadRequest.tags());
 
         if (uploadRequest.secretKey() != null) {
