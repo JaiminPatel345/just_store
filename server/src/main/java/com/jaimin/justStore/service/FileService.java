@@ -143,7 +143,6 @@ public class FileService {
         }
 
         try {
-            logger.debug("Came in try catch");
             InputStream videoStream = YouTubeVideoDownload.downloadVideo(file.getYoutubeVideoUrl());
 
             //decode
@@ -164,6 +163,9 @@ public class FileService {
 
     }
 
+    /**
+     * Encrypt, encode and upload File to YouTube
+     */
     public ResponseEntity<?> uploadFile(UploadFileRequestDto uploadRequest) throws IOException {
         // Check if authenticated with YouTube
         if (!youTubeAuthService.isAuthenticated()) {
@@ -180,9 +182,8 @@ public class FileService {
             newFile.setSecretKeyHash(secretKeyHash);
         }
 
-        byte[] fileBytes = uploadRequest.file().getBytes();
-
-        String fileChecksum = ChecksumUtil.calculateChecksum(fileBytes);
+        String originalFileName = uploadRequest.file().getOriginalFilename();
+        String fileChecksum = ChecksumUtil.calculateChecksum(uploadRequest.file());
         newFile.setFileChecksum(fileChecksum);
 
         // Save file with PENDING status initially
@@ -202,8 +203,10 @@ public class FileService {
         final String tempOutputPath = "/tmp/jaimin_" + newFile.getId() + ".mp4";
 
         try {
+            InputStream fileStream = uploadRequest.file().getInputStream();
+
             logger.info("Creating video from file bytes...");
-            CreateVideoUtil.createVideo(fileBytes, width, height, frameRate, tempOutputPath);
+            CreateVideoUtil.createVideo(uploadRequest.file().getInputStream(), width, height, frameRate, tempOutputPath);
             logger.info("Video created successfully at: {}", tempOutputPath);
 
             // Get access token from auth service
@@ -222,7 +225,7 @@ public class FileService {
             );
 
             // Upload to YouTube
-            String videoTitle = "JustStore_" + newFile.getId() + "_" + newFile.getOriginalFileName().replace(" ", "_");
+            String videoTitle = originalFileName + " - JustStore_" + newFile.getId() ;
             logger.info("Uploading video to YouTube with title: {}", videoTitle);
 
             YouTubeApi.YouTubeUploadResult uploadResult = youTubeApi.uploadVideo(

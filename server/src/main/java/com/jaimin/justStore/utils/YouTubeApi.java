@@ -12,10 +12,10 @@ import com.google.api.services.youtube.model.VideoStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
 
@@ -66,7 +66,7 @@ public class YouTubeApi {
 
         // Set video snippet (metadata)
         VideoSnippet snippet = new VideoSnippet();
-        snippet.setCategoryId("22"); // Category 22 = People & Blogs
+        snippet.setCategoryId("28"); //28 - Science & Technology
         snippet.setTitle(title);
         snippet.setDescription(description);
         if (tags != null && !tags.isEmpty()) {
@@ -80,19 +80,15 @@ public class YouTubeApi {
         video.setStatus(status);
 
         // Prepare the video file for upload
-        File mediaFile = new File(videoFilePath);
-        if (!mediaFile.exists()) {
-            throw new IOException("Video file not found: " + videoFilePath);
-        }
+        InputStream mediaStream = Files.newInputStream(Path.of(videoFilePath));
 
         InputStreamContent mediaContent = new InputStreamContent(
                 "video/*",
-                new BufferedInputStream(new FileInputStream(mediaFile))
+                mediaStream
         );
-        mediaContent.setLength(mediaFile.length());
 
         // Execute the upload
-        logger.info("Uploading video to YouTube... File size: {} bytes", mediaFile.length());
+        logger.info("Uploading video to YouTube... ");
         YouTube.Videos.Insert request = youtubeService.videos()
                 .insert(List.of("snippet", "status"), video, mediaContent);
 
