@@ -25,6 +25,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static com.jaimin.justStore.utils.UploadFileUtil.getNewFile;
+
 @Service
 public class FileService {
     private static final Logger logger = LoggerFactory.getLogger(FileService.class);
@@ -173,25 +175,14 @@ public class FileService {
             );
         }
 
-        if (uploadRequest.file().isEmpty()) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "File bhejna sale ! (Please add file)"
-            );
-        }
-
-        String originalFileName = uploadRequest.file().getOriginalFilename();
-        Long originalFileSizeInByte = uploadRequest.file().getSize();
-        String originalFileType = uploadRequest.file().getContentType();
-
-        //My file model
-        File newFile = new File(originalFileName, originalFileSizeInByte, originalFileType, uploadRequest.tags());
+        File newFile = getNewFile(uploadRequest);
 
         if (uploadRequest.secretKey() != null) {
             String secretKeyHash = HashUtil.hash(uploadRequest.secretKey());
             newFile.setSecretKeyHash(secretKeyHash);
         }
 
+        String originalFileName = uploadRequest.file().getOriginalFilename();
         String fileChecksum = ChecksumUtil.calculateChecksum(uploadRequest.file());
         newFile.setFileChecksum(fileChecksum);
 

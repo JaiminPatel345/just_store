@@ -33,3 +33,6 @@ server/.env
 
 # Local-only Spring profile override
 server/src/main/resources/application-local.properties
+
+#mac
+.DS_Store

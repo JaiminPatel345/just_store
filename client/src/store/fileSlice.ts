@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
+import { extractErrorMessage } from '../utils/errorUtils';
 
 // Get API URL from env or default
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
@@ -96,7 +97,7 @@ export const uploadFile = createAsyncThunk(
       });
       return response.data as UploadResponse;
     } catch (err: any) {
-      return rejectWithValue(err.response?.data?.error || err.response?.data?.message || 'Upload failed');
+      return rejectWithValue(extractErrorMessage(err, 'Upload failed'));
     }
   }
 );
@@ -109,7 +110,7 @@ export const fetchAllFiles = createAsyncThunk(
       const response = await axios.get(`${API_URL}/files`);
       return response.data as FileInfo[];
     } catch (err: any) {
-      return rejectWithValue(err.response?.data?.error || 'Failed to fetch files');
+      return rejectWithValue(extractErrorMessage(err, 'Failed to fetch files'));
     }
   }
 );
@@ -128,7 +129,7 @@ export const searchFiles = createAsyncThunk(
       const response = await axios.get(`${API_URL}/files/search?${queryParams.toString()}`);
       return response.data as FileInfo[];
     } catch (err: any) {
-      return rejectWithValue(err.response?.data?.error || 'Search failed');
+      return rejectWithValue(extractErrorMessage(err, 'Search failed'));
     }
   }
 );
@@ -141,7 +142,7 @@ export const fetchFileById = createAsyncThunk(
       const response = await axios.get(`${API_URL}/files/${id}`);
       return response.data as FileDetail;
     } catch (err: any) {
-      return rejectWithValue(err.response?.data?.error || 'Failed to fetch file details');
+      return rejectWithValue(extractErrorMessage(err, 'Failed to fetch file details'));
     }
   }
 );
@@ -157,7 +158,7 @@ export const retrieveFile = createAsyncThunk(
       });
       return URL.createObjectURL(response.data);
     } catch (err: any) {
-      return rejectWithValue(err.response?.data?.error || 'Retrieval failed');
+      return rejectWithValue(extractErrorMessage(err, 'Retrieval failed'));
     }
   }
 );
@@ -173,7 +174,7 @@ export const downloadFileByYoutubeId = createAsyncThunk(
       // The actual file download would need backend to fetch from YouTube and decode
       return { youtubeVideoId, fileName, message: 'Download initiated' };
     } catch (err: any) {
-      return rejectWithValue(err.response?.data?.error || 'Download failed');
+      return rejectWithValue(extractErrorMessage(err, 'Download failed'));
     }
   }
 );
@@ -183,21 +184,21 @@ const fileSlice = createSlice({
   initialState,
   reducers: {
     resetState: (state) => {
-        state.uploading = false;
-        state.uploadSuccess = false;
-        state.uploadResponse = null;
-        state.error = null;
-        state.retrievedVideoBlobUrl = null;
-        state.retrievedOriginalFileBlobUrl = null;
+      state.uploading = false;
+      state.uploadSuccess = false;
+      state.uploadResponse = null;
+      state.error = null;
+      state.retrievedVideoBlobUrl = null;
+      state.retrievedOriginalFileBlobUrl = null;
     },
     setRetrievedUrl: (state, action: PayloadAction<string>) => {
-        state.retrievedOriginalFileBlobUrl = action.payload;
+      state.retrievedOriginalFileBlobUrl = action.payload;
     },
     clearSelectedFile: (state) => {
-        state.selectedFile = null;
+      state.selectedFile = null;
     },
     clearError: (state) => {
-        state.error = null;
+      state.error = null;
     }
   },
   extraReducers: (builder) => {

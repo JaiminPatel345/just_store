@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Download, 
-  Loader2, 
-  AlertCircle, 
-  CheckCircle, 
-  ArrowLeft, 
-  FileText, 
-  Lock, 
+import {
+  Download,
+  Loader2,
+  AlertCircle,
+  CheckCircle,
+  ArrowLeft,
+  FileText,
+  Lock,
   HardDrive,
   Youtube,
   ExternalLink,
@@ -18,6 +18,7 @@ import {
   Key
 } from 'lucide-react';
 import axios from 'axios';
+import { extractErrorMessage } from '../utils/errorUtils';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
@@ -35,20 +36,20 @@ type DownloadStatus = 'idle' | 'fetching' | 'ready' | 'downloading' | 'success' 
 const DownloadPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  
+
   const fileId = searchParams.get('fileId');
   const fileName = searchParams.get('fileName');
   const fileSize = searchParams.get('fileSize');
   const fileType = searchParams.get('fileType');
   const isEncrypted = searchParams.get('isEncrypted') === 'true';
   const youtubeUrl = searchParams.get('youtubeUrl');
-  
+
   const [status, setStatus] = useState<DownloadStatus>('idle');
   const [error, setError] = useState<string | null>(null);
   const [secretKey, setSecretKey] = useState('');
   const [downloadData, setDownloadData] = useState<DownloadResponse | null>(null);
   const [progress, setProgress] = useState(0);
-  
+
   // Validate required params
   useEffect(() => {
     if (!fileId) {
@@ -59,42 +60,42 @@ const DownloadPage: React.FC = () => {
 
   const fetchAndDownload = async () => {
     if (!fileId) return;
-    
+
     try {
       setStatus('fetching');
       setError(null);
       setProgress(0);
-      
+
       // Simulate progress for better UX
       const progressInterval = setInterval(() => {
         setProgress(prev => Math.min(prev + 5, 90));
       }, 200);
-      
+
       const params: { secretKey?: string } = {};
       if (isEncrypted && secretKey) {
         params.secretKey = secretKey;
       }
-      
+
       const response = await axios.get<DownloadResponse>(`${API_URL}/download/${fileId}`, {
         params
       });
-      
+
       clearInterval(progressInterval);
       setProgress(100);
       setDownloadData(response.data);
       setStatus('ready');
     } catch (err: any) {
       setStatus('error');
-      const errorMessage = err.response?.data?.error || err.response?.data?.message || 'Failed to fetch file';
+      const errorMessage = extractErrorMessage(err, 'Failed to fetch file');
       setError(errorMessage);
     }
   };
 
   const handleDownload = () => {
     if (!downloadData) return;
-    
+
     setStatus('downloading');
-    
+
     try {
       // Decode base64 content
       const byteCharacters = atob(downloadData.fileContent);
@@ -104,7 +105,7 @@ const DownloadPage: React.FC = () => {
       }
       const byteArray = new Uint8Array(byteNumbers);
       const blob = new Blob([byteArray], { type: downloadData.originalFileType });
-      
+
       // Create download link
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -112,11 +113,11 @@ const DownloadPage: React.FC = () => {
       a.download = downloadData.originalFileName;
       document.body.appendChild(a);
       a.click();
-      
+
       // Cleanup
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      
+
       setStatus('success');
     } catch (err) {
       setStatus('error');
@@ -166,7 +167,7 @@ const DownloadPage: React.FC = () => {
         {/* Background Gradient Orb */}
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-600/20 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-600/20 rounded-full blur-3xl pointer-events-none" />
-        
+
         <div className="relative bg-gradient-to-br from-[#242424] to-[#1a1a1a] rounded-2xl border border-gray-800 overflow-hidden">
           {/* Header */}
           <div className="relative px-8 py-10 border-b border-gray-800/50">
@@ -335,7 +336,7 @@ const DownloadPage: React.FC = () => {
                 >
                   <div className="relative w-20 h-20 mx-auto mb-6">
                     <div className="absolute inset-0 rounded-full border-4 border-gray-700" />
-                    <div 
+                    <div
                       className="absolute inset-0 rounded-full border-4 border-blue-500 border-t-transparent animate-spin"
                       style={{
                         clipPath: `inset(0 ${100 - progress}% 0 0)`
@@ -347,7 +348,7 @@ const DownloadPage: React.FC = () => {
                   </div>
                   <h3 className="text-lg font-medium text-white mb-2">Fetching Your File</h3>
                   <p className="text-gray-400">Downloading from YouTube and decoding...</p>
-                  
+
                   {/* Progress Bar */}
                   <div className="mt-6 max-w-xs mx-auto">
                     <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
@@ -474,7 +475,7 @@ const DownloadPage: React.FC = () => {
                   </div>
                   <h3 className="text-lg font-medium text-white mb-2">Download Failed</h3>
                   <p className="text-gray-400 mb-6">{error}</p>
-                  
+
                   {isEncrypted && (
                     <p className="text-yellow-400 text-sm mb-4">
                       <Lock className="w-4 h-4 inline mr-1" />
@@ -520,7 +521,7 @@ const DownloadPage: React.FC = () => {
           <div>
             <h4 className="text-white font-medium mb-1">Secure Download</h4>
             <p className="text-gray-400 text-sm">
-              Your file is retrieved from YouTube, decoded, and delivered directly to your browser. 
+              Your file is retrieved from YouTube, decoded, and delivered directly to your browser.
               All processing happens securely on our servers.
             </p>
           </div>
