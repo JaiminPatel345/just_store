@@ -8,7 +8,7 @@ import java.util.Arrays;
 
 public class RetrieveVideo {
 
-    public static byte[] decodeVideo(InputStream inputStream) throws Exception {
+    public static ByteArrayOutputStream decodeVideo(InputStream inputStream, long totalBytes) throws Exception {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
         FFmpegFrameGrabber grabber = new FFmpegFrameGrabber(inputStream);
@@ -20,8 +20,6 @@ public class RetrieveVideo {
                 throw new IOException("No frames found in video");
             }
 
-            int totalBytes = getMetadataFromFrame(frame);
-
             while ((frame = grabber.grabImage()) != null) {
                 frameToByteArray(frame, bos, totalBytes);
             }
@@ -31,9 +29,10 @@ public class RetrieveVideo {
             grabber.release();
         }
 
-        return baos.toByteArray();
+        return baos;
     }
 
+    //TODO: make it so it get other details
     static int getMetadataFromFrame(Frame frame) {
         Mat mat = new OpenCVFrameConverter.ToMat().convert(frame);
 
@@ -53,7 +52,7 @@ public class RetrieveVideo {
         return totalBytes;
     }
 
-    static void frameToByteArray(Frame frame, BufferedOutputStream bos, int totalBytes) throws IOException {
+    static void frameToByteArray(Frame frame, BufferedOutputStream bos, long totalBytes) throws IOException {
         Mat mat = new OpenCVFrameConverter.ToMat().convert(frame);
 
         final int height = mat.rows();

@@ -94,6 +94,7 @@ public class FileController {
         DownloadFileResponseDto responseDto = fileService.downloadFile(videoId, secretKey);
         return ResponseEntity
                 .status(HttpStatus.OK)
+                .header("Content-Type", responseDto.originalFileType())
                 .body(responseDto);
     }
 

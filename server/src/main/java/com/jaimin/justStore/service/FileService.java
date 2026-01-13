@@ -14,7 +14,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.GeneralSecurityException;
@@ -146,13 +148,19 @@ public class FileService {
             InputStream videoStream = YouTubeVideoDownload.downloadVideo(file.getYoutubeVideoUrl());
 
             //decode
-            byte[] fileContent = RetrieveVideo.decodeVideo(videoStream);
+            ByteArrayOutputStream fileBaos = RetrieveVideo.decodeVideo(videoStream, file.getOriginalFileSizeInByte());
 
             if (file.getSecretKeyHash() != null) {
                 //TODO: decryption
             }
 
-            return DownloadFileResponseDto.from(file, fileContent);
+            StreamingResponseBody stream = outputStream -> {
+                fileBaos.writeTo(outputStream);
+                outputStream.flush();
+            };
+
+
+            return DownloadFileResponseDto.from(file, stream);
         } catch (Exception e) {
             logger.error("Error downloading file", e);
             throw new ResponseStatusException(
@@ -203,9 +211,7 @@ public class FileService {
         final String tempOutputPath = "/tmp/jaimin_" + newFile.getId() + ".mp4";
 
         try {
-            InputStream fileStream = uploadRequest.file().getInputStream();
 
-            logger.info("Creating video from file bytes...");
             CreateVideoUtil.createVideo(uploadRequest.file().getInputStream(), width, height, frameRate, tempOutputPath);
             logger.info("Video created successfully at: {}", tempOutputPath);
 
