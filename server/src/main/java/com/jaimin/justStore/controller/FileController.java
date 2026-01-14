@@ -9,6 +9,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import java.io.IOException;
@@ -95,6 +96,15 @@ public class FileController {
                 .header("Content-Length", String.valueOf(responseDto.originalFileSizeInByte()))
                 .header("Content-Disposition", "attachment; filename=\"" + responseDto.originalFileName() + "\"")
                 .body(responseDto.streamingResponseBody());
+    }
+
+    @PostMapping("/test")
+    public ResponseEntity<?> testEncodeDecode(
+            @RequestBody MultipartFile file
+            ){
+
+        return fileService.testEncodeDecode(file);
+
     }
 
 }

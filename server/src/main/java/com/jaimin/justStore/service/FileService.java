@@ -10,16 +10,15 @@ import com.jaimin.justStore.repository.FileRepository;
 import com.jaimin.justStore.utils.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.security.GeneralSecurityException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -56,7 +55,7 @@ public class FileService {
      * Search files with optional filters.
      */
     public List<FileSearchResponseDto> searchFiles(String fileName, String tag,
-            LocalDate startDate, LocalDate endDate) {
+                                                   LocalDate startDate, LocalDate endDate) {
         LocalDateTime startDateTime = startDate != null ? startDate.atStartOfDay() : null;
         LocalDateTime endDateTime = endDate != null ? endDate.atTime(LocalTime.MAX) : null;
 
@@ -279,5 +278,43 @@ public class FileService {
                     HttpStatus.INTERNAL_SERVER_ERROR,
                     "Upload failed: " + e.getMessage());
         }
+    }
+
+    public ResponseEntity<?> testEncodeDecode(MultipartFile file) {
+        //No DB same only encode and decode
+
+        try {
+            //encode
+            final String tempOutputPath = "/tmp/jaimin_" + file.getOriginalFilename() + ".mp4";
+            String encodeChecksum = ChecksumUtil.calculateChecksum(file.getInputStream());
+
+            final int width = 1920;
+            final int frameRate = 24;
+            final int height = 1072;
+
+            CreateVideoUtil.createVideo(file.getInputStream(), width, height, frameRate, tempOutputPath);
+
+            //decode
+            InputStream is = new FileInputStream(tempOutputPath);
+            ByteArrayOutputStream outputStream = RetrieveVideo.decodeVideo(is, file.getSize());
+
+            String decodeChecksum = ChecksumUtil.calculateChecksum(new ByteArrayInputStream(outputStream.toByteArray(), 0, outputStream.size()));
+
+            logger.info("Encoded video checksum: {}", encodeChecksum);
+            logger.info("Decode view checksum: {}", decodeChecksum);
+
+            return ResponseEntity
+                    .status(HttpStatus.OK)
+                    .header(HttpHeaders.CONTENT_TYPE, file.getContentType() == null ? "video/mp4" : file.getContentType())
+                    .body(outputStream.toByteArray());
+
+
+        } catch (Exception e) {
+            logger.error("Error during decoding: {}", e.getMessage());
+        }
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+
+
     }
 }
