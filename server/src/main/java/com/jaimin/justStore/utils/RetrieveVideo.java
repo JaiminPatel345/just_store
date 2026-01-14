@@ -8,20 +8,19 @@ import java.util.Arrays;
 
 public class RetrieveVideo {
 
-    public static ByteArrayOutputStream decodeVideo(InputStream inputStream, long totalBytes) throws Exception {
+    public static ByteArrayOutputStream decodeVideo(InputStream inputStream, Long totalBytes) throws Exception {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
+
+        Long[] remainingBytes = new Long[]{totalBytes};
 
         FFmpegFrameGrabber grabber = new FFmpegFrameGrabber(inputStream);
         grabber.start();
 
         try (BufferedOutputStream bos = new BufferedOutputStream(baos)) {
-            Frame frame = grabber.grabImage();
-            if (frame == null) {
-                throw new IOException("No frames found in video");
-            }
+            Frame frame;
 
             while ((frame = grabber.grabImage()) != null) {
-                frameToByteArray(frame, bos, totalBytes);
+                frameToByteArray(frame, bos, remainingBytes);
             }
             bos.flush();
         } finally {
@@ -32,7 +31,7 @@ public class RetrieveVideo {
         return baos;
     }
 
-    //TODO: make it so it get other details
+    // TODO: make it so it get other details
     static int getMetadataFromFrame(Frame frame) {
         Mat mat = new OpenCVFrameConverter.ToMat().convert(frame);
 
@@ -52,7 +51,7 @@ public class RetrieveVideo {
         return totalBytes;
     }
 
-    static void frameToByteArray(Frame frame, BufferedOutputStream bos, long totalBytes) throws IOException {
+    static void frameToByteArray(Frame frame, BufferedOutputStream bos, Long[] remainingBytes) throws IOException {
         Mat mat = new OpenCVFrameConverter.ToMat().convert(frame);
 
         final int height = mat.rows();
@@ -75,8 +74,8 @@ public class RetrieveVideo {
                 }
 
                 bytes[j / 8] = myByte;
-                totalBytes--;
-                if (totalBytes == 0) {
+                remainingBytes[0]--;
+                if (remainingBytes[0] == 0) {
                     bos.write(Arrays.copyOfRange(bytes, 0, j / 8 + 1));
                     return;
                 }
@@ -93,6 +92,6 @@ public class RetrieveVideo {
         int green = data[1] & 0xFF;
         int red = data[2] & 0xFF;
 
-        return new int[]{red, green, blue};
+        return new int[] { red, green, blue };
     }
 }
