@@ -21,6 +21,7 @@ public class RetrieveVideo {
 
             while ((frame = grabber.grabImage()) != null) {
                 frameToByteArray(frame, bos, remainingBytes);
+                if (remainingBytes[0] <= 0) break;
             }
             bos.flush();
         } finally {

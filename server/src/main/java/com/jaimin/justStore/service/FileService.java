@@ -23,6 +23,7 @@ import java.security.GeneralSecurityException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -303,10 +304,77 @@ public class FileService {
             logger.info("Encoded video checksum: {}", encodeChecksum);
             logger.info("Decode view checksum: {}", decodeChecksum);
 
+            byte[] decodedBytes = outputStream.toByteArray();
+
+            //For zip this also fails
+            logger.info("Real file bytes: {}", file.getBytes().length);
+            logger.info("Decoded video bytes: {}", decodedBytes.length);
+
+            //try last bytes
+            byte[] originalBytes = file.getBytes();
+
+
+            //Last 10
+            logger.info("Last 10 bytes: " + Arrays.toString(
+                    Arrays.copyOfRange(originalBytes, originalBytes.length - 10, originalBytes.length)
+            ));
+
+            logger.info("Last 10 bytes: " + Arrays.toString(
+                    Arrays.copyOfRange(decodedBytes, decodedBytes.length - 10, decodedBytes.length)
+            ));
+
+            //10 from start
+            logger.info("First 10 bytes: " + Arrays.toString(
+                    Arrays.copyOfRange(originalBytes, 0, 10)
+            ));
+
+            logger.info("First 10 bytes: " + Arrays.toString(
+                    Arrays.copyOfRange(decodedBytes, 0, 10)
+            ));
+
+
+            // compare last 1000
+            // Compare last 1000 bytes
+            int compareLength = Math.min(1000, Math.min(originalBytes.length, decodedBytes.length));
+            int originalStart = originalBytes.length - compareLength;
+            int decodedStart = decodedBytes.length - compareLength;
+
+            byte[] originalLast1000 = Arrays.copyOfRange(originalBytes, originalStart, originalBytes.length);
+            byte[] decodedLast1000 = Arrays.copyOfRange(decodedBytes, decodedStart, decodedBytes.length);
+
+            // Log the arrays
+            logger.info("Original last 1000 bytes: " + Arrays.toString(originalLast1000));
+            logger.info("Decoded last 1000 bytes: " + Arrays.toString(decodedLast1000));
+
+            // Find first difference in last 1000 bytes
+            boolean foundDifference = false;
+            for (int i = 0; i < compareLength; i++) {
+                if (originalLast1000[i] != decodedLast1000[i]) {
+                    logger.info("First difference in last 1000 bytes at position " + i +
+                            " (byte " + (originalStart + i) + " from start)");
+                    logger.info("Original: " + originalLast1000[i] + ", Decoded: " + decodedLast1000[i]);
+                    foundDifference = true;
+                    break;
+                }
+            }
+
+            if (!foundDifference) {
+                logger.info("Last 1000 bytes are identical");
+            }
+
+            //WTF last bytes are same, size is same but still checksum is diff.
+
+            logger.info("Arrays equal: " + Arrays.equals(originalBytes, decodedBytes));
+            // Ohhh full array are different.... Hmmm
+
+
+
+
+
             return ResponseEntity
                     .status(HttpStatus.OK)
                     .header(HttpHeaders.CONTENT_TYPE, file.getContentType() == null ? "video/mp4" : file.getContentType())
-                    .body(outputStream.toByteArray());
+                    .body(decodedBytes);
 
 
         } catch (Exception e) {
