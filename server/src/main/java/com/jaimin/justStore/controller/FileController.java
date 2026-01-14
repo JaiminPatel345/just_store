@@ -9,6 +9,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import java.io.IOException;
 import java.time.LocalDate;
@@ -46,8 +47,7 @@ public class FileController {
             @RequestParam(required = false) String fileName,
             @RequestParam(required = false) String tag,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
-    ) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         List<FileSearchResponseDto> files = fileService.searchFiles(fileName, tag, startDate, endDate);
         return ResponseEntity.ok(files);
     }
@@ -72,8 +72,7 @@ public class FileController {
 
     @PostMapping("/upload")
     public ResponseEntity<?> uploadFile(
-            @ModelAttribute UploadFileRequestDto uploadRequest
-    ) {
+            @ModelAttribute UploadFileRequestDto uploadRequest) {
 
         try {
             return fileService.uploadFile(uploadRequest);
@@ -84,20 +83,18 @@ public class FileController {
         }
     }
 
-
     @GetMapping("/download/{videoId}")
-    public ResponseEntity<?> downloadFile(
+    public ResponseEntity<StreamingResponseBody> downloadFile(
             @PathVariable Long videoId,
-            @RequestParam(required = false) String secretKey
-    ) {
+            @RequestParam(required = false) String secretKey) {
 
         DownloadFileResponseDto responseDto = fileService.downloadFile(videoId, secretKey);
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .header("Content-Type", responseDto.originalFileType())
-                .body(responseDto);
+                .header("Content-Length", String.valueOf(responseDto.originalFileSizeInByte()))
+                .header("Content-Disposition", "attachment; filename=\"" + responseDto.originalFileName() + "\"")
+                .body(responseDto.streamingResponseBody());
     }
 
-
 }
-

@@ -55,7 +55,7 @@ public class FileService {
      * Search files with optional filters.
      */
     public List<FileSearchResponseDto> searchFiles(String fileName, String tag,
-                                                   LocalDate startDate, LocalDate endDate) {
+            LocalDate startDate, LocalDate endDate) {
         LocalDateTime startDateTime = startDate != null ? startDate.atStartOfDay() : null;
         LocalDateTime endDateTime = endDate != null ? endDate.atTime(LocalTime.MAX) : null;
 
@@ -97,8 +97,7 @@ public class FileService {
                 file.getOriginalFileType(),
                 file.getTags(),
                 file.getStatus().name(),
-                file.getCreatedAt()
-        );
+                file.getCreatedAt());
     }
 
     /**
@@ -117,8 +116,7 @@ public class FileService {
                 file.getStatus().name(),
                 file.getSecretKeyHash() != null,
                 file.getCreatedAt(),
-                file.getUpdatedAt()
-        );
+                file.getUpdatedAt());
     }
 
     public DownloadFileResponseDto downloadFile(Long videoId, String secretKey) {
@@ -131,42 +129,39 @@ public class FileService {
             if (secretKey == null) {
                 throw new ResponseStatusException(
                         HttpStatus.UNAUTHORIZED,
-                        "File is encrypted, provide secret key"
-                );
+                        "File is encrypted, provide secret key");
             }
 
             String newSecretKeyHash = HashUtil.hash(secretKey);
             if (!newSecretKeyHash.equals(file.getSecretKeyHash())) {
                 throw new ResponseStatusException(
                         HttpStatus.UNAUTHORIZED,
-                        "Wrong secret key, provide correct secret key"
-                );
+                        "Wrong secret key, provide correct secret key");
             }
         }
 
         try {
             InputStream videoStream = YouTubeVideoDownload.downloadVideo(file.getYoutubeVideoUrl());
 
-            //decode
+            // decode
             ByteArrayOutputStream fileBaos = RetrieveVideo.decodeVideo(videoStream, file.getOriginalFileSizeInByte());
 
             if (file.getSecretKeyHash() != null) {
-                //TODO: decryption
+                // TODO: decryption
             }
 
             StreamingResponseBody stream = outputStream -> {
                 fileBaos.writeTo(outputStream);
                 outputStream.flush();
+                outputStream.close();
             };
-
 
             return DownloadFileResponseDto.from(file, stream);
         } catch (Exception e) {
             logger.error("Error downloading file", e);
             throw new ResponseStatusException(
                     HttpStatus.INTERNAL_SERVER_ERROR,
-                    e.getMessage()
-            );
+                    e.getMessage());
         }
 
     }
@@ -179,8 +174,7 @@ public class FileService {
         if (!youTubeAuthService.isAuthenticated()) {
             throw new ResponseStatusException(
                     HttpStatus.UNAUTHORIZED,
-                    "Please authenticate with YouTube first. Visit /auth/youtube/login"
-            );
+                    "Please authenticate with YouTube first. Visit /auth/youtube/login");
         }
 
         File newFile = getNewFile(uploadRequest);
@@ -212,7 +206,8 @@ public class FileService {
 
         try {
 
-            CreateVideoUtil.createVideo(uploadRequest.file().getInputStream(), width, height, frameRate, tempOutputPath);
+            CreateVideoUtil.createVideo(uploadRequest.file().getInputStream(), width, height, frameRate,
+                    tempOutputPath);
             logger.info("Video created successfully at: {}", tempOutputPath);
 
             // Get access token from auth service
@@ -220,25 +215,22 @@ public class FileService {
             if (accessToken == null) {
                 throw new ResponseStatusException(
                         HttpStatus.UNAUTHORIZED,
-                        "YouTube access token not available. Please re-authenticate."
-                );
+                        "YouTube access token not available. Please re-authenticate.");
             }
 
             // Create YouTubeApi instance with access token
             YouTubeApi youTubeApi = new YouTubeApi(
                     youTubeAuthService.getHttpTransport(),
-                    accessToken
-            );
+                    accessToken);
 
             // Upload to YouTube
-            String videoTitle = originalFileName + " - JustStore_" + newFile.getId() ;
+            String videoTitle = originalFileName + " - JustStore_" + newFile.getId();
             logger.info("Uploading video to YouTube with title: {}", videoTitle);
 
             YouTubeApi.YouTubeUploadResult uploadResult = youTubeApi.uploadVideo(
                     tempOutputPath,
                     videoTitle,
-                    uploadRequest.tags()
-            );
+                    uploadRequest.tags());
 
             // Update file record with YouTube info
             newFile.setYoutubeVideoId(uploadResult.videoId());
@@ -260,8 +252,7 @@ public class FileService {
                             "message", "File uploaded successfully",
                             "fileId", newFile.getId(),
                             "youtubeVideoId", uploadResult.videoId(),
-                            "youtubeVideoUrl", uploadResult.videoUrl()
-                    ));
+                            "youtubeVideoUrl", uploadResult.videoUrl()));
 
         } catch (GeneralSecurityException e) {
             logger.error("YouTube authentication error: {}", e.getMessage());
@@ -269,17 +260,14 @@ public class FileService {
             fileRepository.save(newFile);
             throw new ResponseStatusException(
                     HttpStatus.INTERNAL_SERVER_ERROR,
-                    "YouTube authentication failed: " + e.getMessage()
-            );
+                    "YouTube authentication failed: " + e.getMessage());
         } catch (IOException e) {
             logger.error("Error during upload: {}", e.getMessage());
             newFile.setStatus(Status.FAILED);
             fileRepository.save(newFile);
             throw new ResponseStatusException(
                     HttpStatus.INTERNAL_SERVER_ERROR,
-                    "Upload failed: " + e.getMessage()
-            );
+                    "Upload failed: " + e.getMessage());
         }
     }
 }
-

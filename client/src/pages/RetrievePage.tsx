@@ -29,7 +29,7 @@ const RetrievePage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
   const { files, selectedFile, filesLoading, searchLoading, error } = useSelector((state: RootState) => state.file);
-  const { isAuthenticated, loading: authLoading } = useSelector((state: RootState) => state.auth);
+  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
 
   // Search filters
   const [searchFileName, setSearchFileName] = useState('');
