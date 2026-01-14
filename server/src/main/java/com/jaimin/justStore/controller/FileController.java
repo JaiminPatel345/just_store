@@ -92,6 +92,7 @@ public class FileController {
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .header("Content-Type", responseDto.originalFileType())
+                .header("Content-Length", String.valueOf(responseDto.originalFileSizeInByte()))
                 .header("Content-Disposition", "attachment; filename=\"" + responseDto.originalFileName() + "\"")
                 .body(responseDto.streamingResponseBody());
     }

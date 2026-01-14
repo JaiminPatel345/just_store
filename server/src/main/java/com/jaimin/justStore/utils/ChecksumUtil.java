@@ -6,12 +6,10 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 
-import static com.jaimin.justStore.utils.BytesToHex.bytesToHex;
 
 public class ChecksumUtil {
 

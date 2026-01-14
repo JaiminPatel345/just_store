@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -145,6 +146,15 @@ public class FileService {
 
             // decode
             ByteArrayOutputStream fileBaos = RetrieveVideo.decodeVideo(videoStream, file.getOriginalFileSizeInByte());
+
+            // Verify file integrity
+            String calculatedChecksum = ChecksumUtil.calculateChecksum(new ByteArrayInputStream(fileBaos.toByteArray(), 0, fileBaos.size()));
+            if (!calculatedChecksum.equals(file.getFileChecksum())) {
+                logger.info("In DB : " + file.getFileChecksum() + "\n Calculated checksum: " + calculatedChecksum);
+                throw new ResponseStatusException(
+                        HttpStatus.INTERNAL_SERVER_ERROR,
+                        "File integrity check failed. The decoded file is corrupted.");
+            }
 
             if (file.getSecretKeyHash() != null) {
                 // TODO: decryption

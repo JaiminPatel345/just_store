@@ -54,9 +54,9 @@ public class RetrieveVideo {
     static void frameToByteArray(Frame frame, BufferedOutputStream bos, Long[] remainingBytes) throws IOException {
         Mat mat = new OpenCVFrameConverter.ToMat().convert(frame);
 
-        final int height = mat.rows();
-        final int width = mat.cols();
-        byte[] bytes = new byte[width / 8];
+        final int height = 1072;
+        final int width = 1920;
+        byte[] bytes = new byte[width / 8]; //Row Bytes
 
         for (int i = 0; i < height; i++) {
             for (int j = 0; j < width; j += 8) {
@@ -76,7 +76,8 @@ public class RetrieveVideo {
                 bytes[j / 8] = myByte;
                 remainingBytes[0]--;
                 if (remainingBytes[0] == 0) {
-                    bos.write(Arrays.copyOfRange(bytes, 0, j / 8 + 1));
+                    //write only filed bytes.
+                    bos.write(Arrays.copyOfRange(bytes, 0, j / 8 + 1)); //+1 because endIndex is exclusive
                     return;
                 }
             }
