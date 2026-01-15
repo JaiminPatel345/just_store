@@ -34,22 +34,7 @@ public class RetrieveVideo {
 
     // TODO: make it so it get other details
     static int getMetadataFromFrame(Frame frame) {
-        Mat mat = new OpenCVFrameConverter.ToMat().convert(frame);
-
-        int totalBytes = 0;
-        for (int k = 0; k < 32; k++) {
-            int[] rgb = getPixelRGB(mat, k, 0);
-            int red = rgb[0];
-            int green = rgb[1];
-            int blue = rgb[2];
-
-            boolean isWhite = (red > 128) && (green > 128) && (blue > 128);
-            if (isWhite) {
-                totalBytes |= (1 << k);
-            }
-        }
-        System.out.println("Total length : " + totalBytes);
-        return totalBytes;
+      return -1;
     }
 
     static void frameToByteArray(Frame frame, BufferedOutputStream bos, Long[] remainingBytes) throws IOException {

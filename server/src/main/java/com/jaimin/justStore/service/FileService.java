@@ -368,7 +368,42 @@ public class FileService {
             // Ohhh full array are different.... Hmmm
 
 
+            // Binary search to find the first different byte
+            int firstDiff = -1;
+            for (int i = 0; i < Math.min(originalBytes.length, decodedBytes.length); i++) {
+                if (originalBytes[i] != decodedBytes[i]) {
+                    firstDiff = i;
+                    break;
+                }
+            }
 
+            if (firstDiff != -1) {
+                logger.info("First difference at byte index: " + firstDiff);
+                logger.info("Original byte: " + originalBytes[firstDiff]);
+                logger.info("Decoded byte: " + decodedBytes[firstDiff]);
+
+                // Show context around the difference (±10 bytes)
+                int start = Math.max(0, firstDiff - 10);
+                int end = Math.min(originalBytes.length, firstDiff + 10);
+
+                logger.info("Original context: " + Arrays.toString(
+                        Arrays.copyOfRange(originalBytes, start, end)
+                ));
+                logger.info("Decoded context: " + Arrays.toString(
+                        Arrays.copyOfRange(decodedBytes, start, end)
+                ));
+            } else {
+                logger.info("No byte differences found - arrays should be equal!");
+            }
+
+            // Also count total differences
+            int diffCount = 0;
+            for (int i = 0; i < Math.min(originalBytes.length, decodedBytes.length); i++) {
+                if (originalBytes[i] != decodedBytes[i]) {
+                    diffCount++;
+                }
+            }
+            logger.info("Total different bytes: " + diffCount + " out of " + originalBytes.length);
 
 
             return ResponseEntity
