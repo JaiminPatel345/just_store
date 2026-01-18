@@ -40,8 +40,8 @@ public class RetrieveVideo {
     static void frameToByteArray(Frame frame, BufferedOutputStream bos, Long[] remainingBytes) throws IOException {
         Mat mat = new OpenCVFrameConverter.ToMat().convert(frame);
 
-        final int height = 1072;
-        final int width = 1920;
+        final int height = mat.rows();
+        final int width = mat.cols();
         byte[] bytes = new byte[width / 8]; //Row Bytes
 
         for (int i = 0; i < height; i++) {
@@ -53,7 +53,9 @@ public class RetrieveVideo {
                     int green = rgb[1];
                     int blue = rgb[2];
 
-                    boolean isWhite = (red > 128) && (green > 128) && (blue > 128);
+                    // Use 127 as threshold (more centered) and check average brightness
+                    int brightness = (red + green + blue) / 3;
+                    boolean isWhite = brightness >= 128;
                     if (isWhite) {
                         myByte |= (byte) (1 << (7 - k));
                     }
