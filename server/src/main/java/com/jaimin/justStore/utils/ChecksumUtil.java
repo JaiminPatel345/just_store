@@ -6,11 +6,10 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
 
-import static com.jaimin.justStore.utils.BytesToHex.bytesToHex;
 
 public class ChecksumUtil {
 
@@ -25,9 +24,7 @@ public class ChecksumUtil {
             }
 
             byte[] hash = digest.digest();
-            data.close();
-            return new String(hash, StandardCharsets.UTF_8);
-
+            return Base64.getEncoder().encodeToString(hash);
 
         } catch (NoSuchAlgorithmException e) {
             throw new ResponseStatusException(
@@ -44,7 +41,9 @@ public class ChecksumUtil {
     }
 
     public static String calculateChecksum(MultipartFile file) throws IOException {
-        return calculateChecksum(file.getInputStream());
+        try(InputStream is = file.getInputStream()){
+            return calculateChecksum(is);
+        }
     }
 
 

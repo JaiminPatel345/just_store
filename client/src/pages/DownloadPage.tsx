@@ -17,25 +17,17 @@ import {
   FileDown,
   Key
 } from 'lucide-react';
-import axios from 'axios';
-import { extractErrorMessage } from '../utils/errorUtils';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-
-interface DownloadResponse {
-  videoId: number;
-  originalFileName: string;
-  originalFileSizeInByte: number;
-  originalFileType: string;
-  youtubeVideoUrl: string;
-  fileContent: string; // Base64 encoded
-}
+import { useDispatch, useSelector } from 'react-redux';
+import type { AppDispatch, RootState } from '../store';
+import { downloadFile, clearError, clearDownloadProgress } from '../store/fileSlice';
 
 type DownloadStatus = 'idle' | 'fetching' | 'ready' | 'downloading' | 'success' | 'error';
 
 const DownloadPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const dispatch = useDispatch<AppDispatch>();
+  const { downloadUrl, error: reduxError, downloadProgress } = useSelector((state: RootState) => state.file);
 
   const fileId = searchParams.get('fileId');
   const fileName = searchParams.get('fileName');
@@ -45,10 +37,42 @@ const DownloadPage: React.FC = () => {
   const youtubeUrl = searchParams.get('youtubeUrl');
 
   const [status, setStatus] = useState<DownloadStatus>('idle');
+  // Local error state to display validation errors, reduxError handled via effect
   const [error, setError] = useState<string | null>(null);
   const [secretKey, setSecretKey] = useState('');
-  const [downloadData, setDownloadData] = useState<DownloadResponse | null>(null);
-  const [progress, setProgress] = useState(0);
+
+  // Helper function to format bytes to human readable
+  const formatSpeed = (bytesPerSecond: number): string => {
+    if (bytesPerSecond === 0) return '0 B/s';
+    const k = 1024;
+    const sizes = ['B/s', 'KB/s', 'MB/s', 'GB/s'];
+    const i = Math.floor(Math.log(bytesPerSecond) / Math.log(k));
+    return parseFloat((bytesPerSecond / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  // Helper function to format seconds to time
+  const formatTime = (seconds: number): string => {
+    if (!seconds || seconds === Infinity) return '--';
+    if (seconds < 60) return `${Math.round(seconds)}s`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
+    return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+  };
+
+  // Sync Redux error
+  useEffect(() => {
+    if (reduxError) {
+      setError(reduxError);
+      setStatus('error');
+    }
+  }, [reduxError]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      dispatch(clearError());
+      dispatch(clearDownloadProgress());
+    };
+  }, [dispatch]);
 
   // Validate required params
   useEffect(() => {
@@ -61,67 +85,48 @@ const DownloadPage: React.FC = () => {
   const fetchAndDownload = async () => {
     if (!fileId) return;
 
-    try {
-      setStatus('fetching');
-      setError(null);
-      setProgress(0);
+    setStatus('fetching');
+    setError(null);
+    dispatch(clearError());
+    dispatch(clearDownloadProgress());
 
-      // Simulate progress for better UX
-      const progressInterval = setInterval(() => {
-        setProgress(prev => Math.min(prev + 5, 90));
-      }, 200);
+    const result = await dispatch(downloadFile({ 
+      fileId: parseInt(fileId), 
+      secretKey: isEncrypted ? secretKey : undefined
+    }));
 
-      const params: { secretKey?: string } = {};
-      if (isEncrypted && secretKey) {
-        params.secretKey = secretKey;
-      }
-
-      const response = await axios.get<DownloadResponse>(`${API_URL}/download/${fileId}`, {
-        params
-      });
-
-      clearInterval(progressInterval);
-      setProgress(100);
-      setDownloadData(response.data);
+    if (downloadFile.fulfilled.match(result)) {
       setStatus('ready');
-    } catch (err: any) {
+    } else {
       setStatus('error');
-      const errorMessage = extractErrorMessage(err, 'Failed to fetch file');
-      setError(errorMessage);
+      // Error is handled by useEffect sync
     }
   };
 
   const handleDownload = () => {
-    if (!downloadData) return;
+    if (!downloadUrl) return;
 
     setStatus('downloading');
 
     try {
-      // Decode base64 content
-      const byteCharacters = atob(downloadData.fileContent);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: downloadData.originalFileType });
-
-      // Create download link
-      const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
-      a.download = downloadData.originalFileName;
+      a.href = downloadUrl;
+      a.download = fileName || 'downloaded-file';
+      a.style.display = 'none';
       document.body.appendChild(a);
       a.click();
-
-      // Cleanup
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-
+      
+      // Clean up after a short delay to ensure download starts
+      setTimeout(() => {
+        document.body.removeChild(a);
+        // Revoke the blob URL to free memory
+        URL.revokeObjectURL(downloadUrl);
+      }, 100);
+      
       setStatus('success');
     } catch (err) {
       setStatus('error');
-      setError('Failed to process the downloaded file');
+      setError('Failed to trigger download');
     }
   };
 
@@ -334,36 +339,83 @@ const DownloadPage: React.FC = () => {
                   exit={{ opacity: 0 }}
                   className="text-center py-8"
                 >
-                  <div className="relative w-20 h-20 mx-auto mb-6">
-                    <div className="absolute inset-0 rounded-full border-4 border-gray-700" />
-                    <div
-                      className="absolute inset-0 rounded-full border-4 border-blue-500 border-t-transparent animate-spin"
-                      style={{
-                        clipPath: `inset(0 ${100 - progress}% 0 0)`
-                      }}
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-xl font-bold text-white">{progress}%</span>
-                    </div>
-                  </div>
-                  <h3 className="text-lg font-medium text-white mb-2">Fetching Your File</h3>
-                  <p className="text-gray-400">Downloading from YouTube and decoding...</p>
+                  {/* Before first progress event - Downloading from YouTube */}
+                  {(!downloadProgress || downloadProgress.loaded === 0) ? (
+                    <>
+                      <div className="relative w-20 h-20 mx-auto mb-6">
+                        <div className="absolute inset-0 rounded-full border-4 border-gray-700" />
+                        <div className="absolute inset-0 rounded-full border-4 border-t-blue-500 border-r-transparent border-b-transparent border-l-transparent animate-spin" />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <Youtube className="w-8 h-8 text-red-500" />
+                        </div>
+                      </div>
+                      <h3 className="text-lg font-medium text-white mb-2">Downloading from YouTube</h3>
+                      <p className="text-gray-400">Fetching video from YouTube servers...</p>
+                    </>
+                  ) : (
+                    <>
+                      {/* After first progress event - Converting video */}
+                      <div className="relative w-20 h-20 mx-auto mb-6">
+                        <div className="absolute inset-0 rounded-full border-4 border-gray-700" />
+                        <svg className="absolute inset-0 w-full h-full -rotate-90">
+                          <circle
+                            cx="40"
+                            cy="40"
+                            r="36"
+                            fill="none"
+                            stroke="url(#progressGradient)"
+                            strokeWidth="4"
+                            strokeLinecap="round"
+                            strokeDasharray={`${(downloadProgress.progress) * 2.26} 226`}
+                            className="transition-all duration-300"
+                          />
+                          <defs>
+                            <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                              <stop offset="0%" stopColor="#3B82F6" />
+                              <stop offset="100%" stopColor="#8B5CF6" />
+                            </linearGradient>
+                          </defs>
+                        </svg>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className="text-xl font-bold text-white">{downloadProgress.progress}%</span>
+                        </div>
+                      </div>
+                      <h3 className="text-lg font-medium text-white mb-2">Converting Video</h3>
+                      <p className="text-gray-400 mb-4">Decoding video to retrieve your original file...</p>
 
-                  {/* Progress Bar */}
-                  <div className="mt-6 max-w-xs mx-auto">
-                    <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
-                      <motion.div
-                        className="h-full bg-gradient-to-r from-blue-500 to-purple-500"
-                        animate={{ width: `${progress}%` }}
-                        transition={{ ease: "easeOut" }}
-                      />
-                    </div>
-                  </div>
+                      {/* Download Stats */}
+                      <div className="flex justify-center gap-6 text-sm mb-4">
+                        <div className="text-center">
+                          <p className="text-gray-500">Speed</p>
+                          <p className="text-blue-400 font-medium">{formatSpeed(downloadProgress.rate)}</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-gray-500">Remaining</p>
+                          <p className="text-purple-400 font-medium">{formatTime(downloadProgress.estimated)}</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-gray-500">Downloaded</p>
+                          <p className="text-green-400 font-medium">{formatFileSize(downloadProgress.loaded)}</p>
+                        </div>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <div className="mt-2 max-w-xs mx-auto">
+                        <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                          <motion.div
+                            className="h-full bg-gradient-to-r from-blue-500 to-purple-500"
+                            animate={{ width: `${downloadProgress.progress}%` }}
+                            transition={{ ease: "easeOut" }}
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </motion.div>
               )}
 
               {/* Ready to Download State */}
-              {status === 'ready' && downloadData && (
+              {status === 'ready' && downloadUrl && (
                 <motion.div
                   key="ready"
                   initial={{ opacity: 0, scale: 0.95 }}
@@ -386,9 +438,9 @@ const DownloadPage: React.FC = () => {
                         <FileText className="w-6 h-6 text-green-400" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-white font-medium truncate">{downloadData.originalFileName}</p>
+                        <p className="text-white font-medium truncate">{fileName || 'File'}</p>
                         <p className="text-gray-500 text-sm">
-                          {formatFileSize(downloadData.originalFileSizeInByte)} • {downloadData.originalFileType}
+                          {fileSize ? formatFileSize(Number(fileSize)) : 'Unknown Size'} • {fileType || 'Unknown Type'}
                         </p>
                       </div>
                     </div>
@@ -399,7 +451,7 @@ const DownloadPage: React.FC = () => {
                     className="w-full py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white rounded-xl font-medium transition-all flex items-center justify-center gap-3 group shadow-lg shadow-green-900/20"
                   >
                     <Download className="w-5 h-5 group-hover:translate-y-0.5 transition-transform" />
-                    Download {downloadData.originalFileName}
+                    Download {fileName || 'File'}
                   </button>
                 </motion.div>
               )}

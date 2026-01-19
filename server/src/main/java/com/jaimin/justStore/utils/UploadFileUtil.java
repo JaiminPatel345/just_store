@@ -16,7 +16,7 @@ public class UploadFileUtil {
         }
 
         String originalFileName = uploadRequest.file().getOriginalFilename();
-        Long originalFileSizeInByte = uploadRequest.file().getSize();
+        long originalFileSizeInByte = uploadRequest.file().getSize();
         String originalFileType = uploadRequest.file().getContentType();
 
         //Check if file is too small

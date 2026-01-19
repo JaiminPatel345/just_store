@@ -32,7 +32,6 @@ public class YouTubeVideoDownload {
     }
 
     public static InputStream downloadVideo(String videoUrl) throws IOException {
-        System.out.println("In downlod" + YT_DLP_PATH);
         CommandLine cmdLine = new CommandLine(YT_DLP_PATH);
 
         // Best video only, no audio

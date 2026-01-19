@@ -10,17 +10,20 @@ import com.jaimin.justStore.repository.FileRepository;
 import com.jaimin.justStore.utils.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.security.GeneralSecurityException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -95,8 +98,7 @@ public class FileService {
                 file.getOriginalFileType(),
                 file.getTags(),
                 file.getStatus().name(),
-                file.getCreatedAt()
-        );
+                file.getCreatedAt());
     }
 
     /**
@@ -115,8 +117,7 @@ public class FileService {
                 file.getStatus().name(),
                 file.getSecretKeyHash() != null,
                 file.getCreatedAt(),
-                file.getUpdatedAt()
-        );
+                file.getUpdatedAt());
     }
 
     public DownloadFileResponseDto downloadFile(Long videoId, String secretKey) {
@@ -129,36 +130,48 @@ public class FileService {
             if (secretKey == null) {
                 throw new ResponseStatusException(
                         HttpStatus.UNAUTHORIZED,
-                        "File is encrypted, provide secret key"
-                );
+                        "File is encrypted, provide secret key");
             }
 
             String newSecretKeyHash = HashUtil.hash(secretKey);
             if (!newSecretKeyHash.equals(file.getSecretKeyHash())) {
                 throw new ResponseStatusException(
                         HttpStatus.UNAUTHORIZED,
-                        "Wrong secret key, provide correct secret key"
-                );
+                        "Wrong secret key, provide correct secret key");
             }
         }
 
         try {
             InputStream videoStream = YouTubeVideoDownload.downloadVideo(file.getYoutubeVideoUrl());
 
-            //decode
-            byte[] fileContent = RetrieveVideo.decodeVideo(videoStream);
+            // decode
+            ByteArrayOutputStream fileBaos = RetrieveVideo.decodeVideo(videoStream, file.getOriginalFileSizeInByte());
 
-            if (file.getSecretKeyHash() != null) {
-                //TODO: decryption
+            // Verify file integrity
+            String calculatedChecksum = ChecksumUtil.calculateChecksum(new ByteArrayInputStream(fileBaos.toByteArray(), 0, fileBaos.size()));
+            if (!calculatedChecksum.equals(file.getFileChecksum())) {
+                logger.info("In DB : " + file.getFileChecksum() + "\n Calculated checksum: " + calculatedChecksum);
+                throw new ResponseStatusException(
+                        HttpStatus.INTERNAL_SERVER_ERROR,
+                        "File integrity check failed. The decoded file is corrupted.");
             }
 
-            return DownloadFileResponseDto.from(file, fileContent);
+            if (file.getSecretKeyHash() != null) {
+                // TODO: decryption
+            }
+
+            StreamingResponseBody stream = outputStream -> {
+                fileBaos.writeTo(outputStream);
+                outputStream.flush();
+                outputStream.close();
+            };
+
+            return DownloadFileResponseDto.from(file, stream);
         } catch (Exception e) {
             logger.error("Error downloading file", e);
             throw new ResponseStatusException(
                     HttpStatus.INTERNAL_SERVER_ERROR,
-                    e.getMessage()
-            );
+                    e.getMessage());
         }
 
     }
@@ -171,8 +184,7 @@ public class FileService {
         if (!youTubeAuthService.isAuthenticated()) {
             throw new ResponseStatusException(
                     HttpStatus.UNAUTHORIZED,
-                    "Please authenticate with YouTube first. Visit /auth/youtube/login"
-            );
+                    "Please authenticate with YouTube first. Visit /auth/youtube/login");
         }
 
         File newFile = getNewFile(uploadRequest);
@@ -203,10 +215,9 @@ public class FileService {
         final String tempOutputPath = "/tmp/jaimin_" + newFile.getId() + ".mp4";
 
         try {
-            InputStream fileStream = uploadRequest.file().getInputStream();
 
-            logger.info("Creating video from file bytes...");
-            CreateVideoUtil.createVideo(uploadRequest.file().getInputStream(), width, height, frameRate, tempOutputPath);
+            CreateVideoUtil.createVideo(uploadRequest.file().getInputStream(), width, height, frameRate,
+                    tempOutputPath);
             logger.info("Video created successfully at: {}", tempOutputPath);
 
             // Get access token from auth service
@@ -214,25 +225,22 @@ public class FileService {
             if (accessToken == null) {
                 throw new ResponseStatusException(
                         HttpStatus.UNAUTHORIZED,
-                        "YouTube access token not available. Please re-authenticate."
-                );
+                        "YouTube access token not available. Please re-authenticate.");
             }
 
             // Create YouTubeApi instance with access token
             YouTubeApi youTubeApi = new YouTubeApi(
                     youTubeAuthService.getHttpTransport(),
-                    accessToken
-            );
+                    accessToken);
 
             // Upload to YouTube
-            String videoTitle = originalFileName + " - JustStore_" + newFile.getId() ;
+            String videoTitle = originalFileName + " - JustStore_" + newFile.getId();
             logger.info("Uploading video to YouTube with title: {}", videoTitle);
 
             YouTubeApi.YouTubeUploadResult uploadResult = youTubeApi.uploadVideo(
                     tempOutputPath,
                     videoTitle,
-                    uploadRequest.tags()
-            );
+                    uploadRequest.tags());
 
             // Update file record with YouTube info
             newFile.setYoutubeVideoId(uploadResult.videoId());
@@ -254,8 +262,7 @@ public class FileService {
                             "message", "File uploaded successfully",
                             "fileId", newFile.getId(),
                             "youtubeVideoId", uploadResult.videoId(),
-                            "youtubeVideoUrl", uploadResult.videoUrl()
-                    ));
+                            "youtubeVideoUrl", uploadResult.videoUrl()));
 
         } catch (GeneralSecurityException e) {
             logger.error("YouTube authentication error: {}", e.getMessage());
@@ -263,17 +270,154 @@ public class FileService {
             fileRepository.save(newFile);
             throw new ResponseStatusException(
                     HttpStatus.INTERNAL_SERVER_ERROR,
-                    "YouTube authentication failed: " + e.getMessage()
-            );
+                    "YouTube authentication failed: " + e.getMessage());
         } catch (IOException e) {
             logger.error("Error during upload: {}", e.getMessage());
             newFile.setStatus(Status.FAILED);
             fileRepository.save(newFile);
             throw new ResponseStatusException(
                     HttpStatus.INTERNAL_SERVER_ERROR,
-                    "Upload failed: " + e.getMessage()
-            );
+                    "Upload failed: " + e.getMessage());
         }
     }
-}
 
+    public ResponseEntity<?> testEncodeDecode(MultipartFile file) {
+        //No DB same only encode and decode
+
+        try {
+            //encode
+            final String tempOutputPath = "/tmp/jaimin_" + file.getOriginalFilename() + ".mp4";
+            String encodeChecksum = ChecksumUtil.calculateChecksum(file.getInputStream());
+
+            final int width = 1920;
+            final int frameRate = 24;
+            final int height = 1072;
+
+            CreateVideoUtil.createVideo(file.getInputStream(), width, height, frameRate, tempOutputPath);
+
+            //decode
+            InputStream is = new FileInputStream(tempOutputPath);
+            ByteArrayOutputStream outputStream = RetrieveVideo.decodeVideo(is, file.getSize());
+
+            String decodeChecksum = ChecksumUtil.calculateChecksum(new ByteArrayInputStream(outputStream.toByteArray(), 0, outputStream.size()));
+
+            logger.info("Encoded video checksum: {}", encodeChecksum);
+            logger.info("Decode view checksum: {}", decodeChecksum);
+
+            byte[] decodedBytes = outputStream.toByteArray();
+
+            //For zip this also fails
+            logger.info("Real file bytes: {}", file.getBytes().length);
+            logger.info("Decoded video bytes: {}", decodedBytes.length);
+
+            //try last bytes
+            byte[] originalBytes = file.getBytes();
+
+
+            //Last 10
+            logger.info("Last 10 bytes: " + Arrays.toString(
+                    Arrays.copyOfRange(originalBytes, originalBytes.length - 10, originalBytes.length)
+            ));
+
+            logger.info("Last 10 bytes: " + Arrays.toString(
+                    Arrays.copyOfRange(decodedBytes, decodedBytes.length - 10, decodedBytes.length)
+            ));
+
+            //10 from start
+            logger.info("First 10 bytes: " + Arrays.toString(
+                    Arrays.copyOfRange(originalBytes, 0, 10)
+            ));
+
+            logger.info("First 10 bytes: " + Arrays.toString(
+                    Arrays.copyOfRange(decodedBytes, 0, 10)
+            ));
+
+
+            // compare last 1000
+            // Compare last 1000 bytes
+            int compareLength = Math.min(1000, Math.min(originalBytes.length, decodedBytes.length));
+            int originalStart = originalBytes.length - compareLength;
+            int decodedStart = decodedBytes.length - compareLength;
+
+            byte[] originalLast1000 = Arrays.copyOfRange(originalBytes, originalStart, originalBytes.length);
+            byte[] decodedLast1000 = Arrays.copyOfRange(decodedBytes, decodedStart, decodedBytes.length);
+
+            // Log the arrays
+            logger.info("Original last 1000 bytes: " + Arrays.toString(originalLast1000));
+            logger.info("Decoded last 1000 bytes: " + Arrays.toString(decodedLast1000));
+
+            // Find first difference in last 1000 bytes
+            boolean foundDifference = false;
+            for (int i = 0; i < compareLength; i++) {
+                if (originalLast1000[i] != decodedLast1000[i]) {
+                    logger.info("First difference in last 1000 bytes at position " + i +
+                            " (byte " + (originalStart + i) + " from start)");
+                    logger.info("Original: " + originalLast1000[i] + ", Decoded: " + decodedLast1000[i]);
+                    foundDifference = true;
+                    break;
+                }
+            }
+
+            if (!foundDifference) {
+                logger.info("Last 1000 bytes are identical");
+            }
+
+            //WTF last bytes are same, size is same but still checksum is diff.
+
+            logger.info("Arrays equal: " + Arrays.equals(originalBytes, decodedBytes));
+            // Ohhh full array are different.... Hmmm
+
+
+            // Binary search to find the first different byte
+            int firstDiff = -1;
+            for (int i = 0; i < Math.min(originalBytes.length, decodedBytes.length); i++) {
+                if (originalBytes[i] != decodedBytes[i]) {
+                    firstDiff = i;
+                    break;
+                }
+            }
+
+            if (firstDiff != -1) {
+                logger.info("First difference at byte index: " + firstDiff);
+                logger.info("Original byte: " + originalBytes[firstDiff]);
+                logger.info("Decoded byte: " + decodedBytes[firstDiff]);
+
+                // Show context around the difference (±10 bytes)
+                int start = Math.max(0, firstDiff - 10);
+                int end = Math.min(originalBytes.length, firstDiff + 10);
+
+                logger.info("Original context: " + Arrays.toString(
+                        Arrays.copyOfRange(originalBytes, start, end)
+                ));
+                logger.info("Decoded context: " + Arrays.toString(
+                        Arrays.copyOfRange(decodedBytes, start, end)
+                ));
+            } else {
+                logger.info("No byte differences found - arrays should be equal!");
+            }
+
+            // Also count total differences
+            int diffCount = 0;
+            for (int i = 0; i < Math.min(originalBytes.length, decodedBytes.length); i++) {
+                if (originalBytes[i] != decodedBytes[i]) {
+                    diffCount++;
+                }
+            }
+            logger.info("Total different bytes: " + diffCount + " out of " + originalBytes.length);
+
+
+            return ResponseEntity
+                    .status(HttpStatus.OK)
+                    .header(HttpHeaders.CONTENT_TYPE, file.getContentType() == null ? "video/mp4" : file.getContentType())
+                    .body(decodedBytes);
+
+
+        } catch (Exception e) {
+            logger.error("Error during decoding: {}", e.getMessage());
+        }
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+
+
+    }
+}
